@@ -1,0 +1,85 @@
+# ==================
+# Go
+# ==================
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of go coverage tool
+*.out
+
+# Dependency directory
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Build output
+bin/
+dist/
+
+# ==================
+# Environment
+# ==================
+.env
+.env.local
+.env.*.local
+
+# ==================
+# OS
+# ==================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ==================
+# IDEs & Editors
+# ==================
+
+# JetBrains (GoLand, etc.)
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Vim/Neovim
+*.swp
+*.swo
+Session.vim
+
+# Emacs
+\#*\#
+.#*
+
+# ==================
+# Misc
+# ==================
+
+# Log files
+*.log
+
+# Profiling output (go tool pprof)
+*.prof
+
+# Temporary files
+tmp/
+temp/
