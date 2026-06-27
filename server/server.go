@@ -30,15 +30,26 @@ func RunServer(gh types.GameHandler) {
 			}
 			defer ws.Close()
 			for {
-				var env types.Envelope
-				err := ws.ReadJSON(&env)
+				var envIn types.Envelope
+				err := ws.ReadJSON(&envIn)
 				switch {
 					case err != nil:
 						log.Printf("Error: %v", err)
 					default:
-						log.Printf("JSON Read: %v", env)
+						log.Printf("JSON Read: %v", envIn)
 				}
-				gh.InputHandler(&env)
+				gh.InputHandler(&envIn)
+				// declare envOut to be transmitted
+				var envOut types.Envelope
+				if err := ws.WriteJSON(&envOut) {
+					switch {
+						case err != nil:
+							log.Printf("Error: %v", error)
+						default:
+							log.Printf("JSON Write: %v", envOut)
+					}
+				
+				}
 			}
 		},
 	)

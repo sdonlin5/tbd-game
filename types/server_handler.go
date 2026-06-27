@@ -1,5 +1,7 @@
 package types
 
+
+
 type ServerHandler interface {
-	ResponseHandler()
+	ResponseHandler(r *game.Result)
 }
