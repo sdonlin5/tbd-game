@@ -20,36 +20,43 @@ func RunServer(gh types.GameHandler) {
 		"/ws",
 		func(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Handler Called")
-			ws, err := upgrader.Upgrade(w, r, nil)
+
+			// Upgrade to websocket connection
+			ws, upgradeErr := upgrader.Upgrade(w, r, nil)
 			switch {
-			case err != nil:
-				log.Printf("Error: %v", err)
+			case upgradeErr != nil:
+				log.Printf("Error: %v", upgradeErr)
 				return
 			default:
 				log.Printf("Http upgraded to websocket")
 			}
+
 			defer ws.Close()
+
+			// Server connection loop
 			for {
+				// Input
 				var envIn types.Envelope
-				err := ws.ReadJSON(&envIn)
+				readErr := ws.ReadJSON(&envIn)
 				switch {
-					case err != nil:
-						log.Printf("Error: %v", err)
+					case readErr != nil:
+						log.Printf("Error: %v", readErr)
 					default:
 						log.Printf("JSON Read: %v", envIn)
 				}
 				gh.InputHandler(&envIn)
-				// declare envOut to be transmitted
+
+				// Output
 				var envOut types.Envelope
-				if err := ws.WriteJSON(&envOut) {
+				writeErr := ws.WriteJSON(&envOut)
 					switch {
-						case err != nil:
-							log.Printf("Error: %v", error)
+						case writeErr != nil:
+							log.Printf("Error: %v", writeErr)
 						default:
 							log.Printf("JSON Write: %v", envOut)
 					}
-				
-				}
+
+
 			}
 		},
 	)

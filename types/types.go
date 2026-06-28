@@ -12,3 +12,4 @@ type Envelope struct {
 	Type    string  `json:"type"`
 	Payload Payload `json:"payload"`
 }
+

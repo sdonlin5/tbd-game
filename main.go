@@ -1,12 +1,11 @@
 package main
 
 import (
-	"game_project/game"
 	"game_project/server"
+	"game_project/game"
 )
 
 func main() {
-	playHandler := game.PlayerInput{}
-	server.RunServer(playHandler)
+	gameHandler := game.IOHandler{}
+	server.RunServer(gameHandler)
 }
-

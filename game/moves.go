@@ -23,12 +23,11 @@ type Quit struct{}
 func (s Shot) Execute() {
 	// Shot s receives Execute() command to play move
 	log.Printf("Shot Fired: %d, %d", s.X, s.Y)
-	// 1. validate coordinates
-	// 2. check if coordinates have enemy
-	// 3. update enemy state on enemy board
+	v := validateShot(s)
+	if v {
+	}
 }
 
 func (q Quit) Execute() {
 	log.Printf("Player Quit")
-	return
 }
