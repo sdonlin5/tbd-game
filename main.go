@@ -1,11 +1,16 @@
 package main
 
 import (
-	"game_project/server"
+	_ "fmt"
+	"log"
+
 	"game_project/game"
+	_ "game_project/interfaces"
+	"game_project/server"
 )
 
 func main() {
-	gameHandler := game.IOHandler{}
-	server.RunServer(gameHandler)
+	log.Println("Main Called")
+	var gh game.GameHandler
+	server.RunServer(gh)
 }

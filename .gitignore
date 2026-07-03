@@ -83,3 +83,5 @@ Session.vim
 # Temporary files
 tmp/
 temp/
+*.txt
+arch/

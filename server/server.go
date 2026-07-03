@@ -4,61 +4,46 @@ import (
 	"log"
 	"net/http"
 
-	"game_project/types"
+	"game_project/interfaces"
 
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
+	// Upgrades HTTP connection to websocket
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
 }
 
-func RunServer(gh types.GameHandler) {
-	http.HandleFunc(
-		"/ws",
-		func(w http.ResponseWriter, r *http.Request) {
-			log.Printf("Handler Called")
+func RunServer(gh interfaces.Handler) {
+	http.HandleFunc("/ws", func(w http.ResponseWriter,
+		r *http.Request,
+	) {
+		// upgrade connection
+		ws, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Printf("Upgrade Failed: %v", err)
+			return
+		} else {
+			log.Printf("Upgraded to websocket")
+		}
 
-			// Upgrade to websocket connection
-			ws, upgradeErr := upgrader.Upgrade(w, r, nil)
-			switch {
-			case upgradeErr != nil:
-				log.Printf("Error: %v", upgradeErr)
-				return
-			default:
-				log.Printf("Http upgraded to websocket")
+		defer ws.Close() // ws only closes afer hanlder function ends
+
+		for {
+			// Input
+			var input interfaces.Envelope
+			readError := ws.ReadJSON(&input)
+			if readError != nil {
+				log.Printf("JSON errRead: %v", readError)
 			}
+			gh.InputHandler(&input)
 
-			defer ws.Close()
+			// output
+			var output interfaces.Envelope
+			gh.OutputHandler(&output) // updates envelope
 
-			// Server connection loop
-			for {
-				// Input
-				var envIn types.Envelope
-				readErr := ws.ReadJSON(&envIn)
-				switch {
-					case readErr != nil:
-						log.Printf("Error: %v", readErr)
-					default:
-						log.Printf("JSON Read: %v", envIn)
-				}
-				gh.InputHandler(&envIn)
-
-				// Output
-				var envOut types.Envelope
-				writeErr := ws.WriteJSON(&envOut)
-					switch {
-						case writeErr != nil:
-							log.Printf("Error: %v", writeErr)
-						default:
-							log.Printf("JSON Write: %v", envOut)
-					}
-
-
-			}
-		},
-	)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+		}
+	})
 }
