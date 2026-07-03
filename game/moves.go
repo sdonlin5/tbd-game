@@ -19,13 +19,27 @@ type Shot struct {
 	Y uint8 `json:"y"`
 }
 
-type ShotResult struct {
-	Shot Shot  `json:"shot"`
-	Hit  uint8 `json:"hit"`
-	Sink bool  `json:"sink"`
+// Game history record
+type ShotRecord struct {
+	Shot   Shot `json:"shot"`
+	Result ShotResult
 }
 
-func (s Shot) PlayMove() *ShotResult {
+// Result of shot
+type ShotResult struct {
+	Hit  int
+	Sink bool
+}
+
+// Communicated back to client
+type ShotResponse struct {
+	X    uint8
+	Y    uint8
+	Hit  bool
+	Sink bool
+}
+
+func (s Shot) PlayMove() *ShotResponse {
 	// Plays Shot
 	// Testing:
 	// 		IF X * Y is even --> Hit
@@ -36,21 +50,27 @@ func (s Shot) PlayMove() *ShotResult {
 		return nil
 	}
 	log.Printf("Valid Shot: (%d, %d)", s.X, s.Y)
-	res := ShotResult{Shot: s, Hit: 0, Sink: false}
-	if (s.X*s.Y)%2 != 0 {
-		res.Hit = 1
+
+	response := ShotResponse {		// construct response
+		X: s.X,
+		Y: s.Y,
+		Hit: false,
+		Sink: false,
 	}
-	if s.Y > 7 || s.X < 5 {
-		res.Sink = true
+	if (s.X*s.Y)%2 != 0 {						// hit if even
+		response.Hit = true
 	}
-	return &res
+	if s.Y > 7 && s.X < 5 {						// sink if Y > 7 AND x < 5
+		response.Sink = true
+	}
+	return &response
 }
 
 func (s Shot) ValidateShot() bool {
 	// Validates shot coordinates are valid
 	// FOR TESTING - if X or Y are >= 10
 	log.Printf("ValidateShot() Called")
-	if s.X >= 10 || s.Y >= 10 {
+	if s.X >= 10 || s.Y >= 10 {					// Invalid if coordinate >= 10
 		return false
 	}
 	return true
