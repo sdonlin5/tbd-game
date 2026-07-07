@@ -29,21 +29,33 @@ func RunServer(gh interfaces.Handler) {
 			log.Printf("Upgraded to websocket")
 		}
 
-		defer ws.Close() // ws only closes afer hanlder function ends
+		// defer close until RunServer ends
+		defer ws.Close()
 
+		// IO loop
 		for {
-			// Input
 			var input interfaces.Envelope
+			var output interfaces.Envelope
+
+			// get input sent over websocket
 			readError := ws.ReadJSON(&input)
+			// check for input error
 			if readError != nil {
-				log.Printf("JSON errRead: %v", readError)
+				log.Printf("Error: %v", readError)
+				break
 			}
+			// handle input
 			gh.InputHandler(&input)
 
-			// output
-			var output interfaces.Envelope
-			gh.OutputHandler(&output) // updates envelope
+			// update the output
+			gh.OutputHandler(&output)
 
+			// write output over websocket
+			writeError := ws.WriteJSON(&output)
+			if writeError != nil {
+				log.Printf("Error: %v", writeError)
+				break
+			}
 		}
 	})
 }

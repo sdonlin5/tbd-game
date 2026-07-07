@@ -12,6 +12,12 @@ type Envelope struct {
 }
 
 type Handler interface {
+	// Handlers update envelope passed via pointer
 	InputHandler(*Envelope)
 	OutputHandler(*Envelope)
+}
+
+type Response interface {
+	//
+	Responder() *Envelope
 }

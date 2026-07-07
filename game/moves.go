@@ -1,15 +1,15 @@
 package game
 
 import (
+	"encoding/json"
 	"log"
 
-	_ "game_project/interfaces"
+	"game_project/interfaces"
 )
 
 // Player input actions
-// ]
 type Move interface {
-	PlayMove()
+	PlayMove() *ShotResult
 }
 
 type Shot struct {
@@ -31,6 +31,8 @@ type ShotResult struct {
 	Sink bool
 }
 
+type GameResponse struct{}
+
 // Communicated back to client
 type ShotResponse struct {
 	X    uint8
@@ -39,7 +41,17 @@ type ShotResponse struct {
 	Sink bool
 }
 
-func (s Shot) PlayMove() *ShotResponse {
+func (sr ShotResponse) Responder() *interfaces.Envelope {
+	var p interfaces.Payload
+	p, err := json.Marshal(sr)
+	if err != nil {
+		log.Printf("Error %v", err)
+		return nil
+	}
+	return &interfaces.Envelope{Type: "shot", Payload: p}
+}
+
+func (s Shot) PlayMove() *ShotResult {
 	// Plays Shot
 	// Testing:
 	// 		IF X * Y is even --> Hit
@@ -51,26 +63,24 @@ func (s Shot) PlayMove() *ShotResponse {
 	}
 	log.Printf("Valid Shot: (%d, %d)", s.X, s.Y)
 
-	response := ShotResponse {		// construct response
-		X: s.X,
-		Y: s.Y,
-		Hit: false,
+	result := ShotResult {
+		Hit:  0,
 		Sink: false,
 	}
-	if (s.X*s.Y)%2 != 0 {						// hit if even
-		response.Hit = true
+	if (s.X*s.Y)%2 != 0 { // hit if even
+		result.Hit = 1
 	}
-	if s.Y > 7 && s.X < 5 {						// sink if Y > 7 AND x < 5
-		response.Sink = true
+	if s.Y > 7 && s.X < 5 { // sink if Y > 7 AND x < 5
+		result.Sink = true
 	}
-	return &response
+	return &result
 }
 
 func (s Shot) ValidateShot() bool {
 	// Validates shot coordinates are valid
 	// FOR TESTING - if X or Y are >= 10
 	log.Printf("ValidateShot() Called")
-	if s.X >= 10 || s.Y >= 10 {					// Invalid if coordinate >= 10
+	if s.X >= 10 || s.Y >= 10 { // Invalid if coordinate  10
 		return false
 	}
 	return true

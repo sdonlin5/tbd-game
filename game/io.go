@@ -7,9 +7,14 @@ import (
 	"game_project/interfaces"
 )
 
+
+
+
+
+
 type GameHandler struct{}
 
-func (gh GameHandler) InputHandler(env *interfaces.Envelope) {
+func (gh GameHandler) InputHandler(env *interfaces.Envelope){
 	switch {
 	case env.Type == "shot":
 		// call PlayMove
@@ -17,24 +22,24 @@ func (gh GameHandler) InputHandler(env *interfaces.Envelope) {
 		var s Shot
 		err := json.Unmarshal(env.Payload, &s)
 		if err != nil {
-			log.Printf("Error % v", err)
+			log.Printf("Error: %v", err)
 		}
 
+		result := s.PlayMove()
 
+		return
 
-
-	case env.Type == "quit":
-		log.Printf("Input Type: %v", env.Type)
 	default:
-		log.Printf("Input.Handler() no case found: %v", env.Type)
+		return nil
 	}
 }
 
-func (gh GameHandler) OutputHandler(env *interfaces.Envelope) {
+func (gh GameHandler) OutputHandler(*Response) {
 }
 
-func (gh GameHandler) GetOutput() *string {
-	// UserOutput Interface method
-	// Creates envelope to be sent back to server via Output Handler
-	return nil
-}
+//
+//func (gh GameHandler) GetOutput() *string {
+//	// UserOutput Interface method
+//	// Creates envelope to be sent back to server via Output Handler
+//	return nil
+//}
