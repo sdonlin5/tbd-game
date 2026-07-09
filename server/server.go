@@ -1,61 +1,26 @@
 package server
 
 import (
-	"log"
+	_ "log"
 	"net/http"
-
-	"game_project/interfaces"
-
 	"github.com/gorilla/websocket"
+	"game_project/game"
 )
 
-var upgrader = websocket.Upgrader{
-	// Upgrades HTTP connection to websocket
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+var upgrader = websocket.Upgrader {}
+
+type Client struct {
+	// Connects websocket to game instance
+
+	match *game.Match
+	conn *websocket.Conn
 }
 
-func RunServer(gh interfaces.Handler) {
-	http.HandleFunc("/ws", func(w http.ResponseWriter,
-		r *http.Request,
-	) {
-		// upgrade connection
-		ws, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("Upgrade Failed: %v", err)
-			return
-		} else {
-			log.Printf("Upgraded to websocket")
-		}
+func (c *Client) ReadInput() {
 
-		// defer close until RunServer ends
-		defer ws.Close()
+	for {
 
-		// IO loop
-		for {
-			var input interfaces.Envelope
-			var output interfaces.Envelope
+		
+	}
 
-			// get input sent over websocket
-			readError := ws.ReadJSON(&input)
-			// check for input error
-			if readError != nil {
-				log.Printf("Error: %v", readError)
-				break
-			}
-			// handle input
-			gh.InputHandler(&input)
-
-			// update the output
-			gh.OutputHandler(&output)
-
-			// write output over websocket
-			writeError := ws.WriteJSON(&output)
-			if writeError != nil {
-				log.Printf("Error: %v", writeError)
-				break
-			}
-		}
-	})
 }

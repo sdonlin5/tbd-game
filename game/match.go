@@ -1,13 +1,22 @@
 package game
 
+import (
+	"game_project/interfaces"
+)
+
 type Player struct {
+	PlayerID int
+	Name string
 	color string
 }
 
+
+
 type Match struct {
-	p1 chan Player
-	p2 chan Player
-	shots []Shot
+	p1 chan interfaces.Envelope
+	p2 chan interfaces.Envelope
+	//	shots []Shot // slice to hold shots
 }
 
-func (m *Match) RecordShot()
+
+
