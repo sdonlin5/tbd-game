@@ -11,10 +11,14 @@ import (
 
 // Type to hold player data
 type Player struct {
-	PlayerID 	uuid.UUID `json:"player_id"`
-	Name 		string    `json:"name"`
-	Color		string    `json:"color"`
-	Board		Board
+	ClientID uuid.UUID `json:"client_id"`
+	//Name 		string    `json:"name"`
+	//Color		string    `json:"color"`
+	Board Board
+}
+
+func NewPlayer(id uuid.UUID) *Player {
+	return &Player{ClientID: id}
 }
 
 type Coordinates struct {
@@ -23,11 +27,14 @@ type Coordinates struct {
 }
 
 type Ship struct {
-	Health	uint8	// number of tiles
+	Health uint8 `json:"health"` // number of tiles ship uses
 }
 
 type Board struct {
-	tiles [10][10]bool	// validation testing
-	// tiles [][]*Ship
+	Tiles [10][10]*Ship
+	//tiles [20][20]*Ship production board size
 }
 
+func (b *Board) MarkHit() {
+	//
+}

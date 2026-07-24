@@ -12,13 +12,14 @@ type Hub struct {
 	clients    map[uuid.UUID]*Client
 	register   chan *Client // channel to register clients
 	unregister chan *Client
-	broadcast  chan *Client
+	//broadcast  chan *Client
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		clients:  make(map[uuid.UUID]*Client),
-		register: make(chan *Client),
+		clients:    make(map[uuid.UUID]*Client),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
 	}
 }
 
@@ -28,19 +29,17 @@ func (hub *Hub) Run() {
 	queue := make([]*Client, 0, 2)
 
 	for {
-		// Pop clients from queue
+		// If queue has 2 clients, spawn new match,assign channel, clear queue, reset length
 		if len(queue) > 1 {
-			// spawn new match and adds UUIDs for players
 			match := &game.Match{
-				PlayerOne: queue[0].id,
-				PlayerTwo: queue[1].id,
+				PlayerOne:      game.NewPlayer(queue[0].id),
+				PlayerTwo:      game.NewPlayer(queue[1].id),
+				ActionReceiver: make(chan game.Action),
 			}
-			// assign acttion channel to clients
-			queue[0].match = match.Actions
-			queue[1].match = match.Actions
-
-			// clear the queue
+			queue[0].ActionSender = match.ActionReceiver
+			queue[1].ActionSender = match.ActionReceiver
 			clear(queue)
+			queue = queue[:0]
 		}
 
 		select {
@@ -53,7 +52,7 @@ func (hub *Hub) Run() {
 		case client := <-hub.unregister:
 			if _, ok := hub.clients[client.id]; ok {
 				delete(hub.clients, client.id)
-				close(client.response)
+				close(client.ResponseWriter)
 			}
 		}
 	}

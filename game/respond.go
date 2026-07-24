@@ -10,6 +10,11 @@ type Result struct {
 	Sink 	bool	`json:"sink"`
 }
 
+type QuitConfirmed struct {
+	PlayerConfirmed bool
+	
+}
+
 type Response struct {
 	ReceiverID 	uuid.UUID	`json:"receiverID"`
 	Reply		Reply		`json:"result"`

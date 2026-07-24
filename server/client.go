@@ -30,13 +30,15 @@ type Client struct {
 	hub  *Hub
 	conn *websocket.Conn
 
-	// Outbound channel to the match for the client connection
-	match chan <- game.Action
+	// Write only permission channel for Match to read
+	// Writes the Move received from websocket connection to be
+	// processed by Match
+	ActionSender chan<- game.Action
 
-	// Outbound channel to the websocket for the client connection
-	response chan <- game.Response // Receives
-
-
+	// Read/Write Bidirectional channel.
+	// Writes response from Match to be read by outputPump
+	// Outbound to WS: write permission - Response -> conn
+	ResponseWriter chan game.Response // Outbound to WS: write permission - Response -> conn
 
 }
 
@@ -56,7 +58,6 @@ func (c *Client) initKeepAlive() {
 func (c *Client) setTurnTime() {
 	c.conn.SetWriteDeadline(time.Now().Add(turnTime))
 }
-
 
 // inputPump pumps input received from the websocket connection to the hub.
 //
@@ -87,7 +88,7 @@ func (c *Client) inputPump() {
 
 		// Gaurds against the client not having a match
 		// If true, skips switch until next websocket frame arrives
-		if c.match == nil {
+		if c.ActionSender == nil {
 			log.Printf("Error: %v sent payload before joining match!", c.id)
 			continue
 		}
@@ -119,15 +120,15 @@ func (c *Client) inputPump() {
 			log.Printf("Error %v", jsonError)
 			continue
 
-		// Send the input to the channel
+			// Send the input to the match channel
 		} else {
-			c.match <- game.Action { SenderID: c.id, Move: move }
+			c.ActionSender <- game.Action{SenderID: c.id, Move: move}
 		}
 	}
 }
 
 // Pumps messages from the hub to the websocket connection.
-func (c *Client) ouputPump() {
+func (c *Client) outputPump() {
 
 	// Sets the heartbeat interval
 	// Sends control frame on each tick
@@ -141,17 +142,15 @@ func (c *Client) ouputPump() {
 
 	// Output loop
 	for {
-		//select {
-		//case update, ok := <- c.send:
-		//	c.setTurnTime()
-		//	if !ok {
-		//		// Channel closed by Hub
-		//		c.conn.Close()
-		//	}
-		//}
-
-
-
+		select {
+		case update, ok := <-c.send:
+			c.setTurnTime()
+			if !ok {
+				// Channel closed by Hub
+				c.conn.Close()
+			}
+			w, err := c.conn.WriteJSON()
+		}
 
 	}
 
@@ -175,7 +174,7 @@ func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := &Client{id: uuid.New(), hub: hub, conn: ws} // creates client reference
-	client.hub.register <- client                 // registers the new client
+	client.hub.register <- client                         // registers the new client
 
 	// Start the client input and output loops in go routines
 	//go client.outputPump()
