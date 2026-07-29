@@ -115,6 +115,6 @@ func (res *ShotResult) Played() string {
 type Action struct {
 	// TODO: IS SenderID NEEDED HERE?
 	SenderID uuid.UUID `json:"senderID"`
-	Type 	string
-	Move     Move      `json:"move"`
+	Type     string
+	Move     Move `json:"move"`
 }
