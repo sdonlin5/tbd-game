@@ -47,10 +47,9 @@ func (s Shot) ValidateShot(defender *Player) bool {
 	return true
 }
 
-// Detects if a shit is present at the coordinates
-// Return: hit
 func (s *Shot) DetectHit(p *Player) bool {
-	// For Testing Only - return (true, &Result) IF one of the inputs is even
+	// Checks for hit on player waiting
+	// TODO: Add real hit detection
 	if s.X%2 == 0 || s.Y%2 == 0 {
 		return true
 	} else {
@@ -112,7 +111,10 @@ func (res *ShotResult) Played() string {
 // Quit
 
 // Receives data from match
+
 type Action struct {
+	// TODO: IS SenderID NEEDED HERE?
 	SenderID uuid.UUID `json:"senderID"`
+	Type 	string
 	Move     Move      `json:"move"`
 }

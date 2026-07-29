@@ -31,11 +31,17 @@ func (hub *Hub) Run() {
 	for {
 		// If queue has 2 clients, spawn new match,assign channel, clear queue, reset length
 		if len(queue) > 1 {
+			client1 := queue[0]
+			client2 := queue[1]
+
 			match := &game.Match{
-				PlayerOne:      game.NewPlayer(queue[0].id),
-				PlayerTwo:      game.NewPlayer(queue[1].id),
+				PlayerOne: game.NewPlayer(client1.id),
+				PlayerTwo: game.NewPlayer(client2.id),
 				ActionReceiver: make(chan *game.Action),
+				P1Notifier: client1,
+				P2Notifier: client2,
 			}
+			
 			queue[0].ActionSender = match.ActionReceiver
 			queue[1].ActionSender = match.ActionReceiver
 			clear(queue)

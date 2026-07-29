@@ -114,12 +114,13 @@ func (c *Client) inputPump() {
 			// Send the input to the match channel
 		} else {
 			c.ActionSender <- &game.Action{SenderID: c.id, Move: move}
+			c.ActionSender <- &game.Action{Move: move}
 		}
 	}
 }
 
-// Pumps messages from the hub to the websocket connection.
 func (c *Client) outputPump() {
+	// Pumps messages from the hub to the websocket connection.
 
 	// Sets the heartbeat interval
 	// Sends control frame on each tick
@@ -130,10 +131,29 @@ func (c *Client) outputPump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
-
 	// Output loop
 	for {
-
+		select {
+		// Response { }
+		case resp, ok := <-c.ResponseReceiver:
+			c.conn.SetWriteDeadline(time.Now().Add(pingPeriod))
+			if !ok {
+				// Close the websocket connection gracefully
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				log.Printf("Error: %v", ok)
+				return
+			}
+			// transmit to peer
+			if err := c.conn.WriteJSON(resp); err != nil {
+				log.Printf("Error: %v", err)
+				return
+			}
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(pingPeriod))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
 	}
 }
 

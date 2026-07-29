@@ -3,9 +3,7 @@ package game
 
 import (
 	_ "encoding/json"
-
 	"github.com/google/uuid"
-
 	_ "github.com/gorilla/websocket"
 )
 

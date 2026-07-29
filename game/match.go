@@ -1,71 +1,54 @@
 // Implements the match game thread
+
+// TODO: Refactor for neatness
+
 package game
 
 import (
 	"log"
 	_ "math/rand/v2"
 	"time"
-	"github.com/google/uuid"
+
+	_ "github.com/google/uuid"
 )
 
-// Match
-//
-//	PlayerOne & PlayerTwo:	Player pointers
-//	ActionReceiver:			read/write chan		reads Acton from Client
-//	ResponseSender:			write chan			writes Resonse to Client
-//	Attacker & Defender: 	Pointers to manage turn
-//	ADD HERE
-//	History:				Slice of shots played
-type Match struct {
-	PlayerOne              *Player
-	PlayerTwo              *Player
-	ActionReceiver         chan *Action
-	Current                *Player
-	Waiting                *Player
 
-	p1Notifier				chan <- *Response
-	p2Notifier				chan <- *Response
+type Match struct {
+	// Data type to control an instance of a match
+	PlayerOne      *Player
+	PlayerTwo      *Player
+	ActionReceiver chan *Action			// Bidirectional channel, reads Action written by instance of Client
+
+	Current        *Player				// State pointers
+	Waiting        *Player
+
+	P1Notifier		EventNotifier
+	P2Notifier 		EventNotifier
 	// History             []*ShotResult		TBD use
 }
 
-// Data type to write to ResponseSender
 type Response struct {
-	ReceiverID uuid.UUID `json:"receiverID"`
+	// Response written back to client
 	Type       string    `json:"type"`
 	Result     Result    `json:"result"`
 }
 
-
-// Interface to send updates to Client domain
-// Notify implemented client.go
 type EventNotifier interface {
-	Notify (resp *Response)
+	// Interface to send data to Client,  Notify() implemented by Client
+	Notify(resp *Response)
 }
 
 
-// TODO: Function to select first turn
-//nolint:unused
-// func (m *Match) selectFirstTurn() *Player {
-// 	return &Player{}
-// }
-
-// swapTurns: Swaps current and waiting player
-// -
 func (m *Match) swapTurns() {
+	// Swaps current and waiting players using a temporary variable
 	temp := m.Current
 	m.Current = m.Waiting
 	m.Waiting = temp
 }
 
-//func (m *Match) broadcastResponse(response *Response) {
-//	m.ResponseSender <- response
-//}
 
-// Run()
-// Runs the game loop
-// -
 func (m *Match) Run() {
-
+	// Game loop for a match between two players.
 	// TODO: Create function to randomize
 	m.Current = m.PlayerOne
 	m.Waiting = m.PlayerTwo
@@ -76,7 +59,14 @@ func (m *Match) Run() {
 	// Main game loop
 	for {
 		select {
+
 		case action, ok := <-m.ActionReceiver:
+			// Ignore input in channel from player waiting
+			if action.SenderID != m.Current.ClientID{
+				log.Printf("Ignored out-of-turn move: %v from player: %v", action.Move.Play(), action.SenderID)
+				continue
+			}
+
 			if !ok {
 				log.Printf("Error: ActionReceiver channel closed and contains no remaining values.")
 				return
@@ -84,50 +74,94 @@ func (m *Match) Run() {
 			// Current player input a move
 			switch mv := action.Move.(type) {
 
-				// Move is a shot
-				case Shot:
-					result := mv.PlayShot(m.Waiting)
-					if result.Valid {					// valid shot played => Both players get updated
-						timer.Reset(60 * time.Second)
-						m.swapTurns()
+			// Move is a shot, process
+			case Shot:
+				result := mv.PlayShot(m.Waiting)
+				if result.Valid {
+					// Both clients receive the same response until peer application is available for customization
+					m.P1Notifier.Notify(&Response{
+						Type:       "ShotResult",
+						Result:     result,
+					})
 
-						resp := Response{
-							ReceiverID: m.Current.ClientID,
-							Type: "Shot",
-							Result: result,
-						}
-						m.p1Notifier <- &resp
-						m.p2Notifier <- &resp
-					} else {
-						switch {
-						case m.Current.ClientID == m.PlayerOne.ClientID:
-							m.p1Notifier <- &Response{
+					m.P2Notifier.Notify(&Response{
+						Type:       "ShotResult",
+						Result:     result,
+					})
+
+					/*					Uncomment for ID
+					m.P1Notifier.Notify(&Response{
+						ReceiverID: m.Current.ClientID,
+						Type:       "ShotResult",
+						Result:     result,
+					})
+
+					m.P2Notifier.Notify(&Response{
+						ReceiverID: m.Current.ClientID,
+						Type:       "ShotResult",
+						Result:     result,
+					})
+*/
+
+					m.swapTurns()
+					timer.Reset(60 * time.Second)
+
+				} else {
+					// Invalid shot played
+					// Can play another move if time permits
+					switch  m.Current.ClientID{
+						case m.PlayerOne.ClientID:
+							m.P1Notifier.Notify(
+								&Response{
+								Type:       "ShotResult",
+								Result:     result,
+							})
+
+						default:
+							m.P2Notifier.Notify(
+								&Response{
+								Type:       "ShotResult",
+								Result:     result,
+							})
+
+/*							Uncomment for ID
+							m.P1Notifier.Notify(
+								&Response{
 								ReceiverID: m.Current.ClientID,
-								Type: "Shot",
-								Result: result,
-							}
-						case m.Current.ClientID == m.PlayerTwo.ClientID:
-							m.p2Notifier <- &Response{
-								ReceiverID: m.Current.ClientID,
-								Type: "Shot",
-								Result: result,
-							}
+								Type:       "ShotResult",
+								Result:     result,
+							})
+
+						default:
+							m.P2Notifier.Notify(
+								&Response{
+								ReceiverID: m.Waiting.ClientID,
+								Type:       "ShotResult",
+								Result:     result,
+							})
+
+*/
+
+
 						}
 					}
 
-				// Move is Quit
-				case Quit:
-					result := mv.PlayQuit(m.Current)
-					if result.IsConfirmed {
-						// TODO: function to end match
-						break
-					}
+			case Quit:
+				// Player selected to quit the fame
+				result := mv.PlayQuit(m.Current)
+				if result.IsConfirmed {
+					// TODO: function to end match
+					break
+				}
 			}
-		// Time expired for player to make a move
-		case <- timer.C:
-			log.Println("Time Expired!")
-			m.swapTurns()
+			case <-timer.C:
+				// Time expired for player to make a move
+				log.Println("Time Expired!")
+				m.swapTurns()
+				timer.Reset(60 * time.Second)
+
+			// IF time remains on timer, fallthrough to top of for loop
+			}
 		}
 	}
-}
 
