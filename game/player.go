@@ -14,7 +14,9 @@ type Player struct {
 	ClientID uuid.UUID `json:"client_id"`
 	//Name 		string    `json:"name"`
 	//Color		string    `json:"color"`
-	Board Board
+	PlayerBoard Board
+	Shots 		Board
+	Turn 	bool
 }
 
 func NewPlayer(id uuid.UUID) *Player {

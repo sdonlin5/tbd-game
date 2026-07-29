@@ -33,30 +33,17 @@ type Client struct {
 	// Write only permission channel for Match to read
 	// Writes the Move received from websocket connection to be
 	// processed by Match
-	ActionSender chan<- game.Action
+	ActionSender chan<- *game.Action
 
 	// Read/Write Bidirectional channel.
 	// Writes response from Match to be read by outputPump
 	// Outbound to WS: write permission - Response -> conn
-	ResponseWriter chan game.Response // Outbound to WS: write permission - Response -> conn
-
+	ResponseReceiver chan *game.Response
 }
 
-// Sets the initial deadline for pong
-func (c *Client) setWaitTime() error {
-	return c.conn.SetReadDeadline(time.Now().Add(pongWait))
-}
-
-// Sets the pong handler for messages received from the peer
-func (c *Client) initKeepAlive() {
-	c.conn.SetPongHandler(func(string) error {
-		// After each pong is received, reset the the deadline
-		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	})
-}
-
-func (c *Client) setTurnTime() {
-	c.conn.SetWriteDeadline(time.Now().Add(turnTime))
+// Satisfies EventNotifier interface
+func (c *Client) Notify(resp *game.Response) {
+	c.ResponseReceiver <- resp
 }
 
 // inputPump pumps input received from the websocket connection to the hub.
@@ -70,10 +57,14 @@ func (c *Client) inputPump() {
 		c.conn.Close()
 	}()
 
-	// Wrapper to set the initial heartbeat
-	c.setWaitTime()
-	// Wrapper to configure the pong handler
-	c.initKeepAlive()
+	// Sets the read deadline before connection times out
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+
+	// Pong handler configuration for the connection
+	c.conn.SetPongHandler(func(string) error {
+		// After each pong is received, reset the the deadline
+		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
 
 	for {
 		var input Envelope
@@ -122,7 +113,7 @@ func (c *Client) inputPump() {
 
 			// Send the input to the match channel
 		} else {
-			c.ActionSender <- game.Action{SenderID: c.id, Move: move}
+			c.ActionSender <- &game.Action{SenderID: c.id, Move: move}
 		}
 	}
 }
@@ -142,18 +133,8 @@ func (c *Client) outputPump() {
 
 	// Output loop
 	for {
-		select {
-		case update, ok := <-c.send:
-			c.setTurnTime()
-			if !ok {
-				// Channel closed by Hub
-				c.conn.Close()
-			}
-			w, err := c.conn.WriteJSON()
-		}
 
 	}
-
 }
 
 // Upgrades http to websocket connection
@@ -163,7 +144,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Handles websocket requests from peer application
+// Handles client connections
 func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	// Upgrade the connection to websocket
@@ -173,8 +154,16 @@ func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := &Client{id: uuid.New(), hub: hub, conn: ws} // creates client reference
-	client.hub.register <- client                         // registers the new client
+	// Initialize a new client instance
+	client := &Client{
+		id:               uuid.New(),
+		hub:              hub,
+		conn:             ws,
+		ResponseReceiver: make(chan *game.Response, 256),
+	}
+
+	// Register the client with the hub
+	client.hub.register <- client
 
 	// Start the client input and output loops in go routines
 	//go client.outputPump()

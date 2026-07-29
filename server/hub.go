@@ -34,7 +34,7 @@ func (hub *Hub) Run() {
 			match := &game.Match{
 				PlayerOne:      game.NewPlayer(queue[0].id),
 				PlayerTwo:      game.NewPlayer(queue[1].id),
-				ActionReceiver: make(chan game.Action),
+				ActionReceiver: make(chan *game.Action),
 			}
 			queue[0].ActionSender = match.ActionReceiver
 			queue[1].ActionSender = match.ActionReceiver
@@ -52,7 +52,7 @@ func (hub *Hub) Run() {
 		case client := <-hub.unregister:
 			if _, ok := hub.clients[client.id]; ok {
 				delete(hub.clients, client.id)
-				close(client.ResponseWriter)
+				close(client.ResponseReceiver)
 			}
 		}
 	}

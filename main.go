@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "game_project/game"
 	"game_project/server"
 )
 
