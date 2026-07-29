@@ -41,7 +41,7 @@ func (hub *Hub) Run() {
 				P1Notifier: client1,
 				P2Notifier: client2,
 			}
-			
+
 			queue[0].ActionSender = match.ActionReceiver
 			queue[1].ActionSender = match.ActionReceiver
 			clear(queue)
