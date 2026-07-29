@@ -1,6 +1,5 @@
 
-# TBD
-### Match
+### Add domains, types, definitions, and methods to README
 
 - PlayerOne & PlayerTwo
 - ActionReceiver			read/write chan		reads Acton from Client
