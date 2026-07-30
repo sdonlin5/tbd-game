@@ -3,6 +3,7 @@ package game
 
 import (
 	_ "encoding/json"
+
 	"github.com/google/uuid"
 	_ "github.com/gorilla/websocket"
 )
@@ -10,14 +11,14 @@ import (
 // Type to hold player data
 type Player struct {
 	ClientID uuid.UUID `json:"client_id"`
-	//Name 		string    `json:"name"`
+	Name     string    `json:"name"`
 	//Color		string    `json:"color"`
 	PlayerBoard Board
-	Shots 		Board
-	Turn 	bool
+	Shots       Board
+	Turn        bool
 }
 
-func NewPlayer(id uuid.UUID) *Player {
+func NewPlayer(id uuid.UUID, name string) *Player {
 	return &Player{ClientID: id}
 }
 

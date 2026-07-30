@@ -91,11 +91,14 @@ func (c *Client) inputPump() {
 		// Parses the payload to concrete type
 		switch input.Type {
 		case "Shot":
+
 			var s game.Shot
 			jsonError = json.Unmarshal(input.Payload, &s)
+
 			move = s
 
 		case "Quit":
+			log.Printf("Received: %v", input)
 			var q game.Quit
 			jsonError = json.Unmarshal(input.Payload, &q)
 			move = q
@@ -165,7 +168,8 @@ var upgrader = websocket.Upgrader{
 }
 
 // Handles client connections
-func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
+func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	log.Printf("ServeWS called")
 
 	// Upgrade the connection to websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -173,7 +177,7 @@ func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Printf("ERROR: %v", err)
 		return
 	}
-
+	log.Printf("Connection Upgraded")
 	// Initialize a new client instance
 	client := &Client{
 		id:               uuid.New(),
@@ -186,6 +190,6 @@ func serveWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	client.hub.register <- client
 
 	// Start the client input and output loops in go routines
-	//go client.outputPump()
+	go client.outputPump()
 	go client.inputPump()
 }
