@@ -19,7 +19,7 @@ type Player struct {
 }
 
 func NewPlayer(id uuid.UUID, name string) *Player {
-	return &Player{ClientID: id}
+	return &Player{ClientID: id, Name: name}
 }
 
 type Coordinates struct {

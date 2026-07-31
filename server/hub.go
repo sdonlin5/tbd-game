@@ -27,24 +27,23 @@ func NewHub() *Hub {
 // Runs a hub
 func (hub *Hub) Run() {
 	// Queue for players waiting to be matched
-	log.Println("Hub Started")
+	log.Println("Start Hub")
 	queue := make([]*Client, 0, 2)
 	for {
 
 		// If queue has 2 clients, spawn new match,assign channel, clear queue, reset length
 		if len(queue) > 1 {
-			log.Println("Queue > 1")
 			client1 := queue[0]
 			client2 := queue[1]
 			match := &game.Match{
-
+				MatchID:        uuid.New(),
 				PlayerOne:      game.NewPlayer(client1.id, "p1"),
 				PlayerTwo:      game.NewPlayer(client2.id, "p2"),
 				ActionReceiver: make(chan *game.Action),
 				P1Notifier:     client1,
 				P2Notifier:     client2,
 			}
-			log.Println("Match Created")
+			log.Printf("match spawned: %+v", match)
 
 			queue[0].ActionSender = match.ActionReceiver
 			queue[1].ActionSender = match.ActionReceiver
@@ -53,19 +52,19 @@ func (hub *Hub) Run() {
 			match.Run()
 		}
 		select {
+
 		// Registers a client & adds to queue
 		case client := <-hub.register:
-			log.Println("REGISTER")
+
 			hub.clients[client.id] = client
 			queue = append(queue, client)
-			log.Printf("Client Registered")
+			log.Printf("client registered: %+v", client.id)
 
 		// Unregisters client and closes connection
 		case client := <-hub.unregister:
-			log.Println("UNREGISTER")
 			if _, ok := hub.clients[client.id]; ok {
 				delete(hub.clients, client.id)
-				log.Println("Client Unregistered")
+				log.Printf("client unregistered: %+v", client)
 				close(client.ResponseReceiver)
 			}
 		}

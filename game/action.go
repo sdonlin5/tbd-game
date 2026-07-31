@@ -28,7 +28,7 @@ func (s Shot) Play() string {
 // defender: player being shot at
 func (s *Shot) PlayShot(defender *Player) *ShotResult {
 	// Defaults to invalid shot
-	res := &ShotResult{Shot: s, Valid: false, Hit: false}
+	res := &ShotResult{Type: "ShotResult", Shot: s, Valid: false, Hit: false}
 
 	// If shot is valid, detect hit (and sink)
 	if s.ValidateShot(defender) {
@@ -98,9 +98,11 @@ type Result interface {
 
 // ShotResult
 type ShotResult struct {
+	Type  string
 	Shot  *Shot
 	Valid bool
 	Hit   bool
+	// Sink  bool
 }
 
 // Satisfies Result interface
@@ -115,6 +117,6 @@ func (res *ShotResult) Played() string {
 type Action struct {
 	// TODO: IS SenderID NEEDED HERE?
 	SenderID uuid.UUID `json:"senderID"`
-	Type     string
-	Move     Move `json:"move"`
+	//Type     string		`json:"type"`
+	Move Move `json:"move"`
 }

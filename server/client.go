@@ -70,6 +70,7 @@ func (c *Client) inputPump() {
 		var input Envelope
 		// Blocks until data arrives
 		readErr := c.conn.ReadJSON(&input)
+		log.Printf("ReadJSON: %v", input)
 
 		// Checks for network error
 		if readErr != nil {
@@ -88,6 +89,9 @@ func (c *Client) inputPump() {
 		var move game.Move
 		var jsonError error
 
+		log.Printf("X*X Client Input Received X*X")
+		log.Printf("Client ID: %v", c.id)
+		log.Printf("Input: %v", input)
 		// Parses the payload to concrete type
 		switch input.Type {
 		case "Shot":
@@ -117,7 +121,7 @@ func (c *Client) inputPump() {
 			// Send the input to the match channel
 		} else {
 			c.ActionSender <- &game.Action{SenderID: c.id, Move: move}
-			c.ActionSender <- &game.Action{Move: move}
+			//c.ActionSender <- &game.Action{Move: move}
 		}
 	}
 }
@@ -169,7 +173,6 @@ var upgrader = websocket.Upgrader{
 
 // Handles client connections
 func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	log.Printf("ServeWS called")
 
 	// Upgrade the connection to websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
@@ -177,7 +180,7 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Printf("ERROR: %v", err)
 		return
 	}
-	log.Printf("Connection Upgraded")
+
 	// Initialize a new client instance
 	client := &Client{
 		id:               uuid.New(),
@@ -185,6 +188,7 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		conn:             ws,
 		ResponseReceiver: make(chan *game.Response, 256),
 	}
+	log.Printf("client spawned: %+v", client.id)
 
 	// Register the client with the hub
 	client.hub.register <- client
