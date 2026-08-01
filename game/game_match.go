@@ -68,13 +68,14 @@ func (m *Match) Run() {
 		log.Printf("state:\ncurrent: %+v\nwaiting: %+v", m.Current.ClientID, m.Waiting.ClientID)
 		select {
 		case action, ok := <-m.ActionReceiver:
+			if !ok {
+				log.Printf("Exiting Match: ActionReceiver channel closed and contains no values.")
+				return
+			}
 			// Wrong player
 			if action.SenderID != m.Current.ClientID {
 				log.Printf("out of turn input received")
-				continue
-			}
-			if !ok {
-				log.Printf("ActionReceiver channel closed and contains no values")
+				continue // until correct
 			}
 
 			switch mv := action.Move.(type) {
@@ -131,7 +132,11 @@ func (m *Match) Run() {
 					}
 				}
 			case Quit:
+
+				log.Printf("Game Over\n%v Quit the Match.\nThank you for playing!", m.Current.Name)
+				return
 			}
+
 		case <-timer.C:
 			log.Println("Time Expired!")
 			m.swapTurns()

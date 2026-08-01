@@ -49,7 +49,7 @@ func (hub *Hub) Run() {
 			queue[1].ActionSender = match.ActionReceiver
 			clear(queue)
 			queue = queue[:0]
-			match.Run()
+			go match.Run()
 		}
 		select {
 
