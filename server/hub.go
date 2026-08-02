@@ -3,8 +3,9 @@
 package server
 
 import (
-	"game_project/game"
 	"log"
+
+	"game_project/game"
 
 	"github.com/google/uuid"
 )
@@ -13,7 +14,7 @@ type Hub struct {
 	clients    map[uuid.UUID]*Client
 	register   chan *Client // channel to register clients
 	unregister chan *Client
-	//broadcast  chan *Client
+	// broadcast  chan *Client
 }
 
 func NewHub() *Hub {
@@ -28,7 +29,7 @@ func NewHub() *Hub {
 func (hub *Hub) Run() {
 	// Queue for players waiting to be matched
 	log.Println("Start Hub")
-	queue := make([]*Client, 0, 2)
+	queue := make([]*Client, 0, 20)
 	for {
 
 		// If queue has 2 clients, spawn new match,assign channel, clear queue, reset length
@@ -47,15 +48,13 @@ func (hub *Hub) Run() {
 
 			queue[0].ActionSender = match.ActionReceiver
 			queue[1].ActionSender = match.ActionReceiver
-			clear(queue)
-			queue = queue[:0]
+			queue = queue[2:]
 			go match.Run()
 		}
 		select {
 
 		// Registers a client & adds to queue
 		case client := <-hub.register:
-
 			hub.clients[client.id] = client
 			queue = append(queue, client)
 			log.Printf("client registered: %+v", client.id)
@@ -70,5 +69,4 @@ func (hub *Hub) Run() {
 		}
 
 	}
-
 }

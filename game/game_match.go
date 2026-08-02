@@ -14,7 +14,7 @@ import (
 
 type Match struct {
 	MatchID uuid.UUID
-	// Data type to control an instance of a match
+	// Data type to control an instanatch
 	PlayerOne      *Player
 	PlayerTwo      *Player
 	ActionReceiver chan *Action // Bidirectional channel, reads Action written by instance of Client
@@ -53,7 +53,6 @@ func (m *Match) swapTurns() {
 }
 
 func (m *Match) Run() {
-
 	// Game loop for a match between two players.
 	// TODO: Create function to randomize
 	m.Current = m.PlayerOne
@@ -89,14 +88,16 @@ func (m *Match) Run() {
 							&Response{
 								Type:   result.Type,
 								Result: result,
-							})
+							},
+						)
 
 					case m.Current.ClientID == m.PlayerTwo.ClientID:
 						m.P2Notifier.Notify(
 							&Response{
 								Type:   result.Type,
 								Result: result,
-							})
+							},
+						)
 					}
 				// attacker can play another shot as long as time remains
 
@@ -131,9 +132,25 @@ func (m *Match) Run() {
 
 					}
 				}
-			case Quit:
-
-				log.Printf("Game Over\n%v Quit the Match.\nThank you for playing!", m.Current.Name)
+			case EndMatch:
+				// Notifiy of quit
+				// end match
+				// place players into queue
+				result := mv.PlayEndMatch()
+				m.P1Notifier.Notify(
+					&Response{
+						Type:   result.Type,
+						Result: result,
+					},
+				)
+				m.P2Notifier.Notify(
+					&Response{
+						Type:   result.Type,
+						Result: result,
+					},
+				)
+				log.Printf("%v Ended the Match.", m.Current.Name)
+				log.Println("Game Over")
 				return
 			}
 

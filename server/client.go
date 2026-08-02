@@ -4,19 +4,22 @@ package server
 
 import (
 	"encoding/json"
-	"game_project/game"
 	"log"
 	"net/http"
 	"time"
+
+	"game_project/game"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 // Constat values for ping / pong between peer and server
-const turnTime = 60 * time.Second
-const pongWait = time.Second * 60
-const pingPeriod = (pongWait * 9) / 10
+const (
+	turnTime   = 60 * time.Second
+	pongWait   = time.Second * 60
+	pingPeriod = (pongWait * 9) / 10
+)
 
 // Struct to receive input JSON from the websocket connection.
 type Envelope struct {
@@ -43,7 +46,11 @@ type Client struct {
 
 // Satisfies EventNotifier interface
 func (c *Client) Notify(resp *game.Response) {
-	c.ResponseReceiver <- resp
+	select {
+	case c.ResponseReceiver <- resp:
+	default:
+
+	}
 }
 
 // inputPump pumps input received from the websocket connection to the hub.
@@ -51,14 +58,17 @@ func (c *Client) Notify(resp *game.Response) {
 // Called on a pointer to a Client (c) the server runs inputPump on a per-connection goroutine. Server
 // ensures that there is only one input on a connection by executing all reads from this goroutine.
 func (c *Client) inputPump() {
-
 	// Defers functions until inputPump finishes executing
 	defer func() {
+		c.hub.unregister <- c
 		c.conn.Close()
 	}()
 
 	// Sets the read deadline before connection times out
-	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		log.Printf("%v", err)
+		return
+	} // handle SetWriteDeadline Error
 
 	// Pong handler configuration for the connection
 	c.conn.SetPongHandler(func(string) error {
@@ -75,6 +85,7 @@ func (c *Client) inputPump() {
 		// Checks for network error
 		if readErr != nil {
 			log.Printf("ERROR: %v", readErr)
+
 			return
 		}
 
@@ -101,11 +112,11 @@ func (c *Client) inputPump() {
 
 			move = s
 
-		case "Quit":
+		case "EndMatch":
 			log.Printf("Received: %v", input)
 			var q game.Quit
 			jsonError = json.Unmarshal(input.Payload, &q)
-			move = q
+			move =
 
 		// Add other cases as needed
 		default:
@@ -138,28 +149,40 @@ func (c *Client) outputPump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
+
 	// Output loop
 	for {
 		select {
 		// Response { }
 		case resp, ok := <-c.ResponseReceiver:
-			c.conn.SetWriteDeadline(time.Now().Add(pingPeriod))
 			if !ok {
 				// Close the websocket connection gracefully
-				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
-				log.Printf("Error: %v", ok)
-				return
+				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+					log.Printf("Error: %v", ok)
+					return
+				} // handle WriteMessage Error
 			}
+			if e := c.conn.SetWriteDeadline(time.Now().Add(pingPeriod)); e != nil {
+				log.Printf("%v", e)
+				return
+			} // handle SetWriteDeadline Error
+
 			// transmit to peer
 			if err := c.conn.WriteJSON(resp); err != nil {
 				log.Printf("Error: %v", err)
 				return
-			}
+			} // Handle WriteJSON error
+
 		case <-ticker.C:
-			c.conn.SetWriteDeadline(time.Now().Add(pingPeriod))
-			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			if e := c.conn.SetWriteDeadline(time.Now().Add(pingPeriod)); e != nil {
+				log.Printf("%v", e)
 				return
-			}
+			} // handle SetWriteDeadline Error
+
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("Error: %v", err)
+				return
+			} // handle WriteMessage Error
 		}
 	}
 }
@@ -173,7 +196,6 @@ var upgrader = websocket.Upgrader{
 
 // Handles client connections
 func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
-
 	// Upgrade the connection to websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {

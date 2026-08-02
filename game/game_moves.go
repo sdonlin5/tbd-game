@@ -14,9 +14,8 @@ type Move interface {
 
 // Packge to receive data from match
 type Action struct {
-	// TODO: IS SenderID NEEDED HERE?
 	SenderID uuid.UUID `json:"senderID"`
-	//Type     string		`json:"type"`
+	// Type     string		`json:"type"`
 	Move Move `json:"move"`
 }
 
