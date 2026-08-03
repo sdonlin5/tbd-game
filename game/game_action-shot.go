@@ -1,6 +1,13 @@
-// Defines the player move: Shot
+// Defines player offensive move struct and methods
 // --
 package game
+
+// Implements Move interface
+func (s Shot) Play() string { return "Shot" }
+
+// Implements Result interface
+func (res ShotResult) Played() string { return "ShotResult" }
+
 
 // Shot - Holds X,Y coordinates of a player shot input
 type Shot struct {
@@ -8,8 +15,6 @@ type Shot struct {
 	Y uint8 `json:"y"`
 }
 
-// Satisfies the Move interface
-func (s Shot) Play() string { return "Shot" }
 
 // Validates shots and detects hits
 // defender: player being shot at
@@ -45,7 +50,7 @@ func (s *Shot) DetectHit(p *Player) bool {
 	}
 }
 
-// Package to share data with match
+// Transport for the result of a shot.
 type ShotResult struct {
 	Type  string
 	Shot  *Shot
@@ -53,6 +58,3 @@ type ShotResult struct {
 	Hit   bool
 	// Sink  bool
 }
-
-// Satisfies Result interface
-func (res *ShotResult) Played() string { return "ShotResult" }

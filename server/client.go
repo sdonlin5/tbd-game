@@ -49,9 +49,10 @@ func (c *Client) Notify(resp *game.Response) {
 	select {
 	case c.ResponseReceiver <- resp:
 	default:
-
 	}
 }
+
+
 
 // inputPump pumps input received from the websocket connection to the hub.
 //
@@ -84,9 +85,14 @@ func (c *Client) inputPump() {
 
 		// Checks for network error
 		if readErr != nil {
+			error := game.ClientCriticalError{}
 			log.Printf("ERROR: %v", readErr)
 
-			return
+			select {
+			case c.ActionSender <- &game.Action{SenderID: c.id, Move: error}:
+			default:
+				return
+			}
 		}
 
 		// Gaurds against the client not having a match
@@ -106,17 +112,15 @@ func (c *Client) inputPump() {
 		// Parses the payload to concrete type
 		switch input.Type {
 		case "Shot":
-
 			var s game.Shot
 			jsonError = json.Unmarshal(input.Payload, &s)
-
 			move = s
 
-		case "EndMatch":
+		case "PlayerQuit":
 			log.Printf("Received: %v", input)
-			var q game.Quit
-			jsonError = json.Unmarshal(input.Payload, &q)
-			move =
+			//var end game.PlayerEndedMatch
+			jsonError = json.Unmarshal(input.Payload, &end)
+
 
 		// Add other cases as needed
 		default:
@@ -131,17 +135,23 @@ func (c *Client) inputPump() {
 
 			// Send the input to the match channel
 		} else {
-			c.ActionSender <- &game.Action{SenderID: c.id, Move: move}
+			select {
+			case c.ActionSender <- &game.Action{SenderID: c.id, Move: move}:
+				log.Printf("Input Send Successful")
+			default:
+				return
+			}
+
 			//c.ActionSender <- &game.Action{Move: move}
 		}
 	}
 }
 
+// Pumps messages from the hub to the websocket connection
 func (c *Client) outputPump() {
 	// Pumps messages from the hub to the websocket connection.
 
-	// Sets the heartbeat interval
-	// Sends control frame on each tick
+	// set heartbeat interval
 	ticker := time.NewTicker(pingPeriod)
 
 	// Defer until after outputPump finishes executing
@@ -156,16 +166,17 @@ func (c *Client) outputPump() {
 		// Response { }
 		case resp, ok := <-c.ResponseReceiver:
 			if !ok {
+
 				// Close the websocket connection gracefully
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
 					log.Printf("Error: %v", ok)
 					return
-				} // handle WriteMessage Error
+				}
 			}
 			if e := c.conn.SetWriteDeadline(time.Now().Add(pingPeriod)); e != nil {
 				log.Printf("%v", e)
 				return
-			} // handle SetWriteDeadline Error
+			}
 
 			// transmit to peer
 			if err := c.conn.WriteJSON(resp); err != nil {

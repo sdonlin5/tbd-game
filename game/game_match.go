@@ -27,17 +27,6 @@ type Match struct {
 	History    []*ShotResult
 }
 
-type Response struct {
-	// Response written back to client
-	Type   string `json:"type"`
-	Result Result `json:"result"`
-}
-
-type EventNotifier interface {
-	// Interface to send data to Client,  Notify() implemented by Client
-	Notify(resp *Response)
-}
-
 func (m *Match) swapTurns() {
 	// Swaps current and waiting players using a temporary variable
 	log.Printf("Swap Called\n\nBefore:\n%+v --> current\n%+v --> waiting\n",
@@ -50,6 +39,19 @@ func (m *Match) swapTurns() {
 
 	log.Printf("After:\n%+v --> current\n%+v --> waiting\n",
 		m.Current.ClientID, m.Waiting.ClientID)
+}
+
+// Send the same response to both players
+func (m *Match) NotifyAll(r *Response) {
+	m.P1Notifier.Notify(r)
+	m.P2Notifier.Notify(r)
+}
+
+// Send sends signal to both players
+func (m *Match) Disconnect() {
+	disconnect := Disconnect{}
+	response := &Response{Type: "Disconnect", Result: disconnect}
+	m.NotifyAll(response)
 }
 
 func (m *Match) Run() {
@@ -68,7 +70,8 @@ func (m *Match) Run() {
 		select {
 		case action, ok := <-m.ActionReceiver:
 			if !ok {
-				log.Printf("Exiting Match: ActionReceiver channel closed and contains no values.")
+				log.Printf("NO MATCH END: ActionReceiver Channel Closed")
+				m.Disconnect()
 				return
 			}
 			// Wrong player
@@ -78,6 +81,8 @@ func (m *Match) Run() {
 			}
 
 			switch mv := action.Move.(type) {
+			case ClientCriticalError:
+				// call disconnect sequeence and return to end match
 			case Shot:
 				result := mv.PlayShot(m.Waiting)
 				switch { // valid switch
@@ -103,9 +108,12 @@ func (m *Match) Run() {
 
 				case result.Valid:
 					m.History = append(m.History, result)
+					// resp := Response{Type: result.Type, Result: result}
 					switch m.Current.ClientID {
 					// Current = PlayerOne, Valid = true, hit = true
 					case m.PlayerOne.ClientID:
+						// m.NotifyAll(&resp)
+
 						m.P1Notifier.Notify(&Response{
 							Type:   result.Type,
 							Result: result,
@@ -132,11 +140,11 @@ func (m *Match) Run() {
 
 					}
 				}
-			case EndMatch:
-				// Notifiy of quit
-				// end match
-				// place players into queue
-				result := mv.PlayEndMatch()
+
+			case PlayerQuit:
+				result := PlayerQuitResult{Type: "PlayerQuit", Quit: true}
+				response := Response{Type: result.Type, Result: result}
+
 				m.P1Notifier.Notify(
 					&Response{
 						Type:   result.Type,
@@ -151,6 +159,8 @@ func (m *Match) Run() {
 				)
 				log.Printf("%v Ended the Match.", m.Current.Name)
 				log.Println("Game Over")
+
+				m.TerminateMatch()
 				return
 			}
 
