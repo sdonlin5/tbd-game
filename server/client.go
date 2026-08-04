@@ -29,18 +29,10 @@ type Envelope struct {
 
 // Intermediary between websocket connection and hub.
 type Client struct {
-	id   uuid.UUID // unique identifier for each client
-	hub  *Hub
-	conn *websocket.Conn
-
-	// Write only permission channel for Match to read
-	// Writes the Move received from websocket connection to be
-	// processed by Match
-	ActionSender chan<- *game.Action
-
-	// Read/Write Bidirectional channel.
-	// Writes response from Match to be read by outputPump
-	// Outbound to WS: write permission - Response -> conn
+	id               uuid.UUID // unique identifier for each client
+	hub              *Hub
+	conn             *websocket.Conn
+	ActionSender     chan<- *game.PlayerTurn
 	ResponseReceiver chan *game.Response
 }
 
@@ -52,26 +44,17 @@ func (c *Client) Notify(resp *game.Response) {
 	}
 }
 
-
-
 // inputPump pumps input received from the websocket connection to the hub.
-//
-// Called on a pointer to a Client (c) the server runs inputPump on a per-connection goroutine. Server
-// ensures that there is only one input on a connection by executing all reads from this goroutine.
 func (c *Client) inputPump() {
-	// Defers functions until inputPump finishes executing
 	defer func() {
-		c.hub.unregister <- c
+		c.hub.leave <- c
 		c.conn.Close()
 	}()
 
-	// Sets the read deadline before connection times out
 	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 		log.Printf("%v", err)
 		return
-	} // handle SetWriteDeadline Error
-
-	// Pong handler configuration for the connection
+	}
 	c.conn.SetPongHandler(func(string) error {
 		// After each pong is received, reset the the deadline
 		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -79,37 +62,32 @@ func (c *Client) inputPump() {
 
 	for {
 		var input Envelope
-		// Blocks until data arrives
 		readErr := c.conn.ReadJSON(&input)
 		log.Printf("ReadJSON: %v", input)
 
-		// Checks for network error
+		// Gaurds against sending to a match who's goroutine ended
 		if readErr != nil {
-			error := game.ClientCriticalError{}
-			log.Printf("ERROR: %v", readErr)
-
 			select {
-			case c.ActionSender <- &game.Action{SenderID: c.id, Move: error}:
+			case c.ActionSender <- &game.PlayerTurn{
+				SenderID:     c.id,
+				Disconnected: true,
+			}:
 			default:
 				return
 			}
 		}
 
 		// Gaurds against the client not having a match
-		// If true, skips switch until next websocket frame arrives
 		if c.ActionSender == nil {
 			log.Printf("Error: %v sent payload before joining match!", c.id)
 			continue
 		}
-
 		// Intermediate storage
 		var move game.Move
 		var jsonError error
+		log.Printf("ClientID: %v  - Input: %v", c.id, input)
 
-		log.Printf("X*X Client Input Received X*X")
-		log.Printf("Client ID: %v", c.id)
-		log.Printf("Input: %v", input)
-		// Parses the payload to concrete type
+		// parse the payload
 		switch input.Type {
 		case "Shot":
 			var s game.Shot
@@ -118,26 +96,21 @@ func (c *Client) inputPump() {
 
 		case "PlayerQuit":
 			log.Printf("Received: %v", input)
-			//var end game.PlayerEndedMatch
-			jsonError = json.Unmarshal(input.Payload, &end)
 
-
-		// Add other cases as needed
 		default:
 			log.Printf("Unknown input type: %v", input.Type)
-			continue // prevent sending nil to match
+			continue
 		}
 
-		// Handle malformed input
+		// Error if json malformed
 		if jsonError != nil {
 			log.Printf("Error %v", jsonError)
 			continue
 
-			// Send the input to the match channel
 		} else {
 			select {
-			case c.ActionSender <- &game.Action{SenderID: c.id, Move: move}:
-				log.Printf("Input Send Successful")
+			case c.ActionSender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
+				log.Printf("Input sent to match")
 			default:
 				return
 			}
@@ -149,12 +122,8 @@ func (c *Client) inputPump() {
 
 // Pumps messages from the hub to the websocket connection
 func (c *Client) outputPump() {
-	// Pumps messages from the hub to the websocket connection.
-
-	// set heartbeat interval
+	// sets heartbeat interval
 	ticker := time.NewTicker(pingPeriod)
-
-	// Defer until after outputPump finishes executing
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
@@ -163,10 +132,8 @@ func (c *Client) outputPump() {
 	// Output loop
 	for {
 		select {
-		// Response { }
 		case resp, ok := <-c.ResponseReceiver:
 			if !ok {
-
 				// Close the websocket connection gracefully
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
 					log.Printf("Error: %v", ok)

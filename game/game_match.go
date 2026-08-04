@@ -1,7 +1,3 @@
-// Implements the match game thread
-
-// TODO: Refactor for neatness
-
 package game
 
 import (
@@ -17,18 +13,16 @@ type Match struct {
 	// Data type to control an instanatch
 	PlayerOne      *Player
 	PlayerTwo      *Player
-	ActionReceiver chan *Action // Bidirectional channel, reads Action written by instance of Client
-
-	Current *Player // State pointers
-	Waiting *Player
-
-	P1Notifier EventNotifier
-	P2Notifier EventNotifier
-	History    []*ShotResult
+	ActionReceiver chan *PlayerTurn
+	Current        *Player
+	Waiting        *Player
+	P1Notifier     EventNotifier
+	P2Notifier     EventNotifier
+	History        []*ShotResult
 }
 
+// Swaps current and waiting players using a temporary variable
 func (m *Match) swapTurns() {
-	// Swaps current and waiting players using a temporary variable
 	log.Printf("Swap Called\n\nBefore:\n%+v --> current\n%+v --> waiting\n",
 		m.Current.ClientID,
 		m.Waiting.ClientID)
@@ -47,45 +41,50 @@ func (m *Match) NotifyAll(r *Response) {
 	m.P2Notifier.Notify(r)
 }
 
-// Send sends signal to both players
-func (m *Match) Disconnect() {
-	disconnect := Disconnect{}
-	response := &Response{Type: "Disconnect", Result: disconnect}
-	m.NotifyAll(response)
-}
-
+// Main game loop
 func (m *Match) Run() {
-	// Game loop for a match between two players.
-	// TODO: Create function to randomize
 	m.Current = m.PlayerOne
 	m.Waiting = m.PlayerTwo
-	m.History = make([]*ShotResult, 0)
 	timer := time.NewTimer(60 * time.Second)
 	log.Printf("Start Match")
 
-	// Main Loop
 	for {
-
-		log.Printf("state:\ncurrent: %+v\nwaiting: %+v", m.Current.ClientID, m.Waiting.ClientID)
 		select {
 		case action, ok := <-m.ActionReceiver:
 			if !ok {
-				log.Printf("NO MATCH END: ActionReceiver Channel Closed")
-				m.Disconnect()
+				log.Printf("ActionReceiver Channel Closed")
 				return
 			}
+			if action.Disconnected {
+				res := Disconnection{
+					player: m.Current,
+					name:   m.Current.Name,
+				}
+				switch m.Current {
+				case m.PlayerOne:
+					m.P1Notifier.Notify(&Response{
+						Type:   "Disconnection",
+						Result: res,
+					})
+				case m.PlayerTwo:
+					m.P2Notifier.Notify(&Response{
+						Type:   "Disconnection",
+						Result: res,
+					})
+				}
+			}
+
 			// Wrong player
 			if action.SenderID != m.Current.ClientID {
-				log.Printf("out of turn input received")
+				log.Printf("Out of turn input received")
 				continue // until correct
 			}
 
 			switch mv := action.Move.(type) {
-			case ClientCriticalError:
-				// call disconnect sequeence and return to end match
 			case Shot:
 				result := mv.PlayShot(m.Waiting)
-				switch { // valid switch
+				switch {
+				// invalid input - shouldn't happen from app
 				case !result.Valid:
 					switch { // current
 					case m.Current.ClientID == m.PlayerOne.ClientID:
@@ -104,11 +103,10 @@ func (m *Match) Run() {
 							},
 						)
 					}
-				// attacker can play another shot as long as time remains
 
 				case result.Valid:
 					m.History = append(m.History, result)
-					// resp := Response{Type: result.Type, Result: result}
+					//resp := Response{Type: result.Type, Result: result}
 					switch m.Current.ClientID {
 					// Current = PlayerOne, Valid = true, hit = true
 					case m.PlayerOne.ClientID:
@@ -140,11 +138,8 @@ func (m *Match) Run() {
 
 					}
 				}
-
 			case PlayerQuit:
 				result := PlayerQuitResult{Type: "PlayerQuit", Quit: true}
-				response := Response{Type: result.Type, Result: result}
-
 				m.P1Notifier.Notify(
 					&Response{
 						Type:   result.Type,
@@ -157,10 +152,7 @@ func (m *Match) Run() {
 						Result: result,
 					},
 				)
-				log.Printf("%v Ended the Match.", m.Current.Name)
-				log.Println("Game Over")
-
-				m.TerminateMatch()
+				log.Printf("Match Ended By: %v", m.Current.Name)
 				return
 			}
 

@@ -4,6 +4,7 @@ package server
 
 import (
 	"log"
+	"slices"
 
 	"game_project/game"
 
@@ -11,61 +12,106 @@ import (
 )
 
 type Hub struct {
-	clients    map[uuid.UUID]*Client
-	register   chan *Client // channel to register clients
+	clients map[uuid.UUID]*Client
+	queue   []*Client
+
+	register   chan *Client
 	unregister chan *Client
-	// broadcast  chan *Client
+	leave      chan *Client
 }
 
+// -- Hub Methods --
+// Spawns a hub from main
 func NewHub() *Hub {
 	return &Hub{
 		clients:    make(map[uuid.UUID]*Client),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		leave:      make(chan *Client),
 	}
 }
 
-// Runs a hub
-func (hub *Hub) Run() {
-	// Queue for players waiting to be matched
-	log.Println("Start Hub")
-	queue := make([]*Client, 0, 20)
-	for {
+// Registers clients with the Hub
+func (hub *Hub) registerClient(client *Client) {
+	hub.clients[client.id] = client
+	log.Printf("Client Registered: ID =  %v", client.id)
+}
 
-		// If queue has 2 clients, spawn new match,assign channel, clear queue, reset length
-		if len(queue) > 1 {
-			client1 := queue[0]
-			client2 := queue[1]
+// Adds client to the queue
+func (hub *Hub) queueClient(client *Client) {
+	hub.queue = append(hub.queue, client)
+	log.Printf("Client Queued: ID = %v", client.id)
+}
+
+// Unregisters clients
+func (hub *Hub) unregisterClient(client *Client) {
+	if _, ok := hub.clients[client.id]; ok {
+		delete(hub.clients, client.id)
+		close(client.ResponseReceiver)
+		close(client.ActionSender)
+		log.Printf("Client Unregistered: ID =  %v", client.id)
+	}
+}
+
+// Removes clients from the queue
+func (hub *Hub) removeFromQueue(client *Client) {
+	for i, c := range hub.queue {
+		if c.id == client.id {
+			hub.queue = slices.Delete(hub.queue, i, i+1)
+		}
+	}
+	log.Printf("Client Removed From Queue: ID = %v", client.id)
+}
+
+// Disconnects client from the queue.
+func (hub *Hub) disconnectClient(client *Client) {
+	hub.removeFromQueue(client)
+	hub.unregisterClient(client)
+}
+
+// Removes two clients from the front of the queue to be placed into a match
+func (hub *Hub) dequeue() (*Client, *Client) {
+	client1 := hub.queue[0]
+	client2 := hub.queue[1]
+	hub.queue = hub.queue[2:]
+	return client1, client2
+}
+
+// Main hub loop, started by main
+func (hub *Hub) Run() {
+	// queue for players waiting to be matched
+	log.Println("Start Hub")
+	for {
+		// Place clients into a match
+		if len(hub.queue) > 1 {
+			c1, c2 := hub.dequeue()
+
 			match := &game.Match{
 				MatchID:        uuid.New(),
-				PlayerOne:      game.NewPlayer(client1.id, "p1"),
-				PlayerTwo:      game.NewPlayer(client2.id, "p2"),
-				ActionReceiver: make(chan *game.Action),
-				P1Notifier:     client1,
-				P2Notifier:     client2,
+				PlayerOne:      game.NewPlayer(c1.id, "p1"),
+				PlayerTwo:      game.NewPlayer(c2.id, "p2"),
+				ActionReceiver: make(chan *game.PlayerTurn),
+				P1Notifier:     c1,
+				P2Notifier:     c2,
 			}
-			log.Printf("match spawned: %+v", match)
 
-			queue[0].ActionSender = match.ActionReceiver
-			queue[1].ActionSender = match.ActionReceiver
-			queue = queue[2:]
+			// Associate channels
+			c1.ActionSender = match.ActionReceiver
+			c2.ActionSender = match.ActionReceiver
+			log.Printf("Match Spawned: ID = %+v", match.MatchID)
 			go match.Run()
 		}
 		select {
 
-		// Registers a client & adds to queue
-		case client := <-hub.register:
-			hub.clients[client.id] = client
-			queue = append(queue, client)
-			log.Printf("client registered: %+v", client.id)
+		case c := <-hub.leave: // remove the client from queue and registry
+			hub.disconnectClient(c)
 
-		// Unregisters client and closes connection
-		case client := <-hub.unregister:
-			if _, ok := hub.clients[client.id]; ok {
-				delete(hub.clients, client.id)
-				log.Printf("client unregistered: %+v", client)
-				close(client.ResponseReceiver)
-			}
+		case c := <-hub.register: // Add new client to registry and queue
+			hub.registerClient(c)
+			hub.queueClient(c)
+
+		case c := <-hub.unregister: // Remove a client from registry
+			hub.unregisterClient(c)
 		}
 
 	}

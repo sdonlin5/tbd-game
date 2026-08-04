@@ -12,7 +12,7 @@ import (
 type Player struct {
 	ClientID uuid.UUID `json:"client_id"`
 	Name     string    `json:"name"`
-	//Color		string    `json:"color"`
+	// Color		string    `json:"color"`
 	PlayerBoard Board
 	Shots       Board
 	Turn        bool
@@ -33,7 +33,7 @@ type Ship struct {
 
 type Board struct {
 	Tiles [10][10]*Ship
-	//tiles [20][20]*Ship production board size
+	// tiles [20][20]*Ship production board size
 }
 
 func (b *Board) MarkHit() {
