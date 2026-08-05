@@ -80,15 +80,10 @@ func (m *Match) Run() {
 	for {
 		select {
 		case action, ok := <-m.Player1.Receiver:
-			if !ok || action.Disconnected {
+			if !ok {
 				m.Player2.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
 				return
 			}
-			if action.Disconnected {
-				m.Player2.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
-				return
-			}
-
 			switch res := m.routeAction(action, m.Player1, m.Player2).(type) {
 			case *OutOfTurnResult:
 				// Only sent to player who input
@@ -125,10 +120,6 @@ func (m *Match) Run() {
 			}
 		case action, ok := <-m.Player2.Receiver:
 			if !ok {
-				m.Player1.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
-				return
-			}
-			if action.Disconnected {
 				m.Player1.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
 				return
 			}

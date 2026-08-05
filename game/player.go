@@ -3,13 +3,16 @@ package game
 
 import (
 	_ "encoding/json"
+	"log"
 
 	"github.com/google/uuid"
 	_ "github.com/gorilla/websocket"
 )
 
-const rows uint8 = 10
-const cols uint8 = 10
+const (
+	rows uint8 = 10
+	cols uint8 = 10
+)
 
 // Type to hold player data
 type Player struct {
@@ -19,9 +22,9 @@ type Player struct {
 	playerBoard [rows][cols]*Tile
 	shotBoard   [rows][cols]*Tile
 	//nolint:unused
-	turn        bool
-	Sender      EventNotifier
-	Receiver    chan *PlayerTurn
+	turn     bool
+	Sender   EventNotifier
+	Receiver chan *PlayerTurn
 }
 
 func NewPlayer(id uuid.UUID, name string) *Player {
@@ -97,8 +100,8 @@ type Tile struct {
 	Y        int
 	occupied bool
 	hit      bool
-	//nolint:unused 
-	ship     any
+	//nolint:unused
+	ship any
 }
 
 func newTile(x int, y int, occupied bool) *Tile {
@@ -109,14 +112,29 @@ func newTile(x int, y int, occupied bool) *Tile {
 	}
 }
 
+type Board [10][10]*Tile
+
 func newBoard() [10][10]*Tile {
-	var b [10][10]*Tile
+	var b Board
 	for i := 0; i < 10; i++ {
-		for j := 0; i < 10; i++ {
+		for j := 0; j < 10; j++ {
 			b[i][j] = newTile(i, j, false)
 		}
 	}
 	return b
+}
+
+// nolint: unused
+func (b *Board) printBoard() {
+	for i := 0; i < 10; i++ {
+		for j := 0; j < 10; j++ {
+			if i == 9 {
+				log.Printf("[%v, %v]\n", b[i][j].X, b[i][j].Y)
+			} else {
+				log.Printf("[%v, %v]", b[i][j].X, b[i][j].Y)
+			}
+		}
+	}
 }
 
 //nolint:unused
@@ -124,6 +142,7 @@ func (p *Player) updateAttacker(r *ShotResult) {
 	// place hit ship indcator at shot coordinates
 	p.shotBoard[r.Shot.X][r.Shot.Y].ship = HitShip{}
 }
+
 //nolint:unused
 func (p *Player) updateDefender(r *ShotResult) {
 	// marks that a ship has been hit
