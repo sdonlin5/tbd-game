@@ -21,62 +21,69 @@ type Player struct {
 }
 
 func NewPlayer(id uuid.UUID, name string) *Player {
-	return &Player{ClientID: id, Name: name}
+	return &Player{
+		ClientID: id,
+		Name: name,
+		Receiver: make(chan *PlayerTurn),
+
+	}
 }
+
+
 
 type Vessel interface {
 	Sail() bool
 }
 
 type Ship struct {
-	player *Player
-	color  string
-	// position []*Tile
-	sunk bool
+	Player *Player	`json:"Player"`
+	Color  string	`json:"Color"`
+	//position []*Tile
+	Sunk bool 		`json:"Sunk"`
 }
 
 type HitShip struct {
-	ship Ship
+	Ship Ship	`json:"Ship"`
 }
 
 func (s *HitShip) Sail() bool { return true }
 
 type Destroyer struct {
-	ship   Ship
-	health uint8 // 2
-	hits   uint8
+	Ship   Ship			`json:"Ship"`
+	Health uint8 		`json:"Health"` // 2
+	Hits   uint8 		`json:"Hits"`
 }
 
 func (s *Destroyer) Sail() bool { return true }
 
 type Carrier struct {
-	ship   Ship
-	health uint8 // 5
-	hits   uint8
+	Ship   Ship			`json:"Ship"`
+	Health uint8 		`json:"Health"` // 5
+	Hits   uint8 		`json:"Hits"`
 }
 
 func (s *Carrier) Sail() bool { return true }
 
 type Battleship struct {
-	ship   Ship
-	health uint8 // 4
-	hits   uint8
+	Ship   Ship			`json:"Ship"`
+	Health uint8 		`json:"Health"` // 4
+	Hits   uint8 		`json:"Hits"`
 }
 
 func (s *Battleship) Sail() bool { return true }
 
 type Cruiser struct {
-	ship   Ship
-	health uint8 // 3
-	hits   uint8
+	Ship   Ship			`json:"Ship"`
+	Health uint8 		`json:"Health"` // 3
+	Hits   uint8 		`json:"Hits"`
 }
 
 func (s *Cruiser) Sail() bool { return true }
 
 type Submarine struct {
-	ship   Ship
-	health uint8 // 3
-	hits   uint8
+	Ship   Ship			`json:"Ship"`
+	Health uint8 		`json:"Health"` // 3
+	Hits   uint8 		`json:"Hits"`
 }
 
 func (s *Submarine) Sail() bool { return true }
@@ -96,10 +103,10 @@ type Board struct {
 
 func (p *Player) updateAttacker(r *ShotResult) {
 	// place hit ship indcator at shot coordinates
-	p.shotBoard.coords[r.shot.X][r.shot.Y].ship = HitShip{}
+	p.shotBoard.coords[r.Shot.X][r.Shot.Y].ship = HitShip{}
 }
 
 func (p *Player) updateDefender(r *ShotResult) {
 	// marks that a ship has been hit
-	p.playerBoard.coords[r.shot.X][r.shot.Y].ship = HitShip{}
+	p.playerBoard.coords[r.Shot.X][r.Shot.Y].ship = HitShip{}
 }

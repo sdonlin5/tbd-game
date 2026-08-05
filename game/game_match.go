@@ -28,7 +28,7 @@ func NewMatch(id1 uuid.UUID, name1 string, id2 uuid.UUID, name2 string) *Match {
 	return &Match{
 		MatchID: uuid.New(),
 		Player1: NewPlayer(id1, name1),
-		Player2: NewPlayer(id1, name2),
+		Player2: NewPlayer(id2, name2),
 	}
 }
 
@@ -112,12 +112,6 @@ func (m *Match) Run() {
 				m.notifyAll(s)
 				m.swapTurns()
 				timer.Reset(60 * time.Second)
-
-			default:
-				m.notifyAll(&Response{
-					Type:   "NullResult",
-					Result: &NullResult{},
-				})
 			}
 		case action, ok := <-m.Player2.Receiver:
 			if !ok {
@@ -148,11 +142,6 @@ func (m *Match) Run() {
 				m.swapTurns()
 				timer.Reset(60 * time.Second)
 			}
-		default:
-			m.notifyAll(&Response{
-					Type:   "NullResult",
-					Result: &NullResult{},
-				})
 		case <-timer.C:
 			m.swapTurns()
 			timer.Reset(60 * time.Second)

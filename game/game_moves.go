@@ -51,10 +51,10 @@ func (s *Shot) Play() {}
 
 // Results of player attack
 type ShotResult struct {
-	kind  string
-	shot  *Shot
-	valid bool
-	hit   bool
+	Kind  string
+	Shot  *Shot
+	Valid bool
+	Hit   bool
 }
 
 // Implements Result interface
@@ -86,27 +86,27 @@ func (s *Shot) playShot(shooter, defender *Player) *ShotResult {
 		// previously hit - should not happen
 		if defender.playerBoard.coords[s.X][s.Y].hit {
 			return &ShotResult{
-				kind:  "ShotResult",
-				shot:  s,
-				valid: true,
-				hit:   false,
+				Kind:  "ShotResult",
+				Shot:  s,
+				Valid: true,
+				Hit:   false,
 			}
 		} else {
 			return &ShotResult{
-				kind:  "ShotResult",
-				shot:  s,
-				valid: true,
-				hit:  true,
+				Kind:  "ShotResult",
+				Shot:  s,
+				Valid: true,
+				Hit:  true,
 			}
 		}
 	// location no occupied, miss
 	default:
 		// not hit
 		return &ShotResult{
-			kind:  "ShotResult",
-			shot:  s,
-			valid: true,
-			hit:   false,
+			Kind:  "ShotResult",
+			Shot:  s,
+			Valid: true,
+			Hit:   false,
 		}
 	}
 }

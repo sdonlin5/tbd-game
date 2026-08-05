@@ -68,13 +68,13 @@ func (c *Client) inputPump() {
 		// Gaurds against sending to a match who's goroutine ended
 		if readErr != nil {
 			select {
-			case c.ActionSender <- &game.PlayerTurn{
-				SenderID:     c.id,
+				case c.ActionSender <- &game.PlayerTurn{
+				SenderID: 	c.id,
 				Disconnected: true,
 			}:
-			default:
-				return
+				default:
 			}
+			return
 		}
 
 		// Gaurds against the client not having a match
@@ -134,12 +134,13 @@ func (c *Client) outputPump() {
 		select {
 		case resp, ok := <-c.ResponseReceiver:
 			if !ok {
-				// Close the websocket connection gracefully
-				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{});
+				err != nil {
 					log.Printf("Error: %v", ok)
-					return
 				}
+				return
 			}
+
 			if e := c.conn.SetWriteDeadline(time.Now().Add(pingPeriod)); e != nil {
 				log.Printf("%v", e)
 				return

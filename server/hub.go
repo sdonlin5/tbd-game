@@ -47,8 +47,6 @@ func (hub *Hub) queueClient(client *Client) {
 func (hub *Hub) unregisterClient(client *Client) {
 	if _, ok := hub.clients[client.id]; ok {
 		delete(hub.clients, client.id)
-		close(client.ResponseReceiver)
-		close(client.ActionSender)
 		log.Printf("Client Unregistered: ID =  %v", client.id)
 	}
 }
@@ -97,14 +95,11 @@ func (hub *Hub) Run() {
 			go match.Run()
 		}
 		select {
-
 		case c := <-hub.leave: // remove the client from queue and registry
 			hub.disconnectClient(c)
-
 		case c := <-hub.register: // Add new client to registry and queue
 			hub.registerClient(c)
 			hub.queueClient(c)
-
 		case c := <-hub.unregister: // Remove a client from registry
 			hub.unregisterClient(c)
 		}
