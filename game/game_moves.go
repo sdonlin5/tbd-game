@@ -10,19 +10,20 @@ import (
 // Struct to receive data
 type PlayerTurn struct {
 	SenderID uuid.UUID `json:"senderID"`
-	//Type     string    `json:"type"`
-	Move     Move      `json:"move"`
+	// Type     string    `json:"type"`
+	Move         Move `json:"move"`
 	Disconnected bool
 }
 
 // Move interface
 type Move interface {
-	Play() string
+	Play()
 }
 
 // Interface for outcomes of player moves
+
 type Result interface {
-	Played() string
+	Played()
 }
 
 // Interface between client and match
@@ -36,11 +37,6 @@ type Response struct {
 	Result Result `json:"result"`
 }
 
-// Implements Move interface
-func (s Shot) Play() string { return "Shot" }
-
-// Implements Result interface
-func (res ShotResult) Played() string { return "ShotResult" }
 
 // Player attack
 // Shot X,Y coordinates player attacked at
@@ -49,75 +45,96 @@ type Shot struct {
 	Y uint8 `json:"y"`
 }
 
+// Implements Move interface
+func (s Shot) Play() {}
+
+
 // Results of player attack
 type ShotResult struct {
-	Type  string
-	Shot  *Shot
-	Valid bool
-	Hit   bool
+	kind  string
+	shot  *Shot
+	valid bool
+	hit   bool
 }
 
-// Validates and detects hit of player attack
-func (s *Shot) PlayShot(defender *Player) *ShotResult {
-	// Defaults to invalid shot
-	res := &ShotResult{Type: "ShotResult", Shot: s, Valid: false, Hit: false}
+// Implements Result interface
+func (res ShotResult) Played() {}
 
-	// If shot is valid, detect hit (and sink)
-	if s.ValidateShot(defender) {
-		res.Valid = true
-		res.Hit = s.DetectHit(defender)
-	}
-	return res
+
+func (s *Shot) shotHandler(shooter, defender *Player) Result {
+	// Shot not valid
+	if !s.validateShot(defender) {
+		return &InvalidShotResult{}
+		}
+	return s.playShot(shooter, defender)
 }
 
 // Validates the values of player attack
-func (s Shot) ValidateShot(defender *Player) bool {
-	if int(s.X) >= len(defender.PlayerBoard.Tiles) ||
-		int(s.Y) >= len(defender.PlayerBoard.Tiles[0]) {
+func (s Shot) validateShot(defender *Player) bool {
+	if int(s.X) >= len(defender.playerBoard.coords) ||
+		int(s.Y) >= len(defender.playerBoard.coords[0]) {
 		return false
 	}
 	return true
 }
 
-// TODO: HIT DETECTION
-// Hit detection for player attack
-func (s *Shot) DetectHit(p *Player) bool {
-	// Checks for hit on player waiting
-	// TODO: Add real hit detection
-	if s.X%2 == 0 || s.Y%2 == 0 {
-		return true
-	} else {
-		return false
+// Hit detection it detection
+func (s *Shot) playShot(shooter, defender *Player) *ShotResult {
+	switch {
+	// location occupired
+	case defender.playerBoard.coords[s.X][s.Y].occupied:
+		// previously hit - should not happen
+		if defender.playerBoard.coords[s.X][s.Y].hit {
+			return &ShotResult{
+				kind:  "ShotResult",
+				shot:  s,
+				valid: true,
+				hit:   false,
+			}
+		} else {
+			return &ShotResult{
+				kind:  "ShotResult",
+				shot:  s,
+				valid: true,
+				hit:  true,
+			}
+		}
+	// location no occupied, miss
+	default:
+		// not hit
+		return &ShotResult{
+			kind:  "ShotResult",
+			shot:  s,
+			valid: true,
+			hit:   false,
+		}
 	}
 }
+
 // -- End Attack Moves
 
-// TODO: CLEAN UP QUIT
-// Quit Move
-type Quit struct{}
+// Signal types
+// Use where a default sholdn't be hit
+type NullResult struct{}
+func (nr *NullResult) Played() {}
 
-// Implements Move interface
-func (q PlayerQuit) Play() string { return "PlayerQuit" }
+// Signal player quitting the match
+type PlayerQuit struct{}
+func (q PlayerQuit) Play() {}
 
-// Implements Result interface
-func (res PlayerQuitResult) Played() string { return "PlayerQuitResult" }
+type PlayerQuitResult struct{}
+func (res PlayerQuitResult) Played() {}
 
-type PlayerQuit struct {
-	QuitMatch bool
-}
+// Invalid shot received signal - shouldn't happen
+type InvalidShotResult struct{}
+func (i InvalidShotResult) Played() {}
 
-type PlayerQuitResult struct {
-	Type string
-	Quit bool
-}
-// -- End Quit Move
+// Signal that a shot was played out of turn - shouldn't happen
+type OutOfTurnResult struct{}
+func (oot OutOfTurnResult) Played() {}
 
+// Used to signal
+type Disconnect struct{}
+func (d Disconnect) Played() {}
 
-// Disconnection Result
-type Disconnection struct {
-	player *Player
-	name string
-}
-
-func (d Disconnection) Played() string {return "PlayerDisconnection" }
 //-- End Disconnection

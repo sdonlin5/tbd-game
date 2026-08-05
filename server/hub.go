@@ -85,19 +85,14 @@ func (hub *Hub) Run() {
 		// Place clients into a match
 		if len(hub.queue) > 1 {
 			c1, c2 := hub.dequeue()
+			match:= game.NewMatch(c1.id, "p1", c2.id, "p2")
 
-			match := &game.Match{
-				MatchID:        uuid.New(),
-				PlayerOne:      game.NewPlayer(c1.id, "p1"),
-				PlayerTwo:      game.NewPlayer(c2.id, "p2"),
-				ActionReceiver: make(chan *game.PlayerTurn),
-				P1Notifier:     c1,
-				P2Notifier:     c2,
-			}
+			// Associate Chanels
+			match.Player1.Sender = c1
+			match.Player2.Sender = c2
+			c1.ActionSender = match.Player1.Receiver
+			c2.ActionSender = match.Player2.Receiver
 
-			// Associate channels
-			c1.ActionSender = match.ActionReceiver
-			c2.ActionSender = match.ActionReceiver
 			log.Printf("Match Spawned: ID = %+v", match.MatchID)
 			go match.Run()
 		}

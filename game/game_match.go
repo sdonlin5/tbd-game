@@ -11,153 +11,145 @@ import (
 type Match struct {
 	MatchID uuid.UUID
 	// Data type to control an instanatch
-	PlayerOne      *Player
-	PlayerTwo      *Player
-	ActionReceiver chan *PlayerTurn
-	Current        *Player
-	Waiting        *Player
-	P1Notifier     EventNotifier
-	P2Notifier     EventNotifier
-	History        []*ShotResult
+	Player1 *Player
+	Player2 *Player
+	// P1Receiver chan *PlayerTurn
+	// P1Sender   EventNotifier
+	// P2Receiver chan *PlayerTurn
+	// P2Sender   EventNotifier
+	// ActionReceiver chan *PlayerTurn
+	current *Player
+	waiting *Player
+	History []*ShotResult
+}
+
+// Spawns new match, called by Hub
+func NewMatch(id1 uuid.UUID, name1 string, id2 uuid.UUID, name2 string) *Match {
+	return &Match{
+		MatchID: uuid.New(),
+		Player1: NewPlayer(id1, name1),
+		Player2: NewPlayer(id1, name2),
+	}
 }
 
 // Swaps current and waiting players using a temporary variable
 func (m *Match) swapTurns() {
 	log.Printf("Swap Called\n\nBefore:\n%+v --> current\n%+v --> waiting\n",
-		m.Current.ClientID,
-		m.Waiting.ClientID)
+		m.current.ClientID,
+		m.waiting.ClientID)
 
-	temp := m.Current
-	m.Current = m.Waiting
-	m.Waiting = temp
+	temp := m.current
+	m.current = m.waiting
+	m.waiting = temp
 
 	log.Printf("After:\n%+v --> current\n%+v --> waiting\n",
-		m.Current.ClientID, m.Waiting.ClientID)
+		m.current.ClientID, m.waiting.ClientID)
 }
 
 // Send the same response to both players
-func (m *Match) NotifyAll(r *Response) {
-	m.P1Notifier.Notify(r)
-	m.P2Notifier.Notify(r)
+func (m *Match) notifyAll(r *Response) {
+	m.current.Sender.Notify(r)
+	m.waiting.Sender.Notify(r)
+}
+
+func (m *Match) routeAction(action *PlayerTurn, sender, other *Player) Result {
+	switch mv := action.Move.(type) {
+	// handle quit
+	case PlayerQuit:
+		return &PlayerQuitResult{}
+	// handle shot
+	case Shot:
+		// handle out of turn
+		if sender.ClientID != m.current.ClientID {
+			return &OutOfTurnResult{}
+		}
+		return mv.shotHandler(sender, other)
+	// Should never get here
+	default:
+		return &NullResult{}
+	}
 }
 
 // Main game loop
 func (m *Match) Run() {
-	m.Current = m.PlayerOne
-	m.Waiting = m.PlayerTwo
+	m.current = m.Player1
+	m.waiting = m.Player2
 	timer := time.NewTimer(60 * time.Second)
 	log.Printf("Start Match")
 
 	for {
 		select {
-		case action, ok := <-m.ActionReceiver:
+		case action, ok := <-m.Player1.Receiver:
 			if !ok {
-				log.Printf("ActionReceiver Channel Closed")
+				m.Player2.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
 				return
 			}
-			if action.Disconnected {
-				res := Disconnection{
-					player: m.Current,
-					name:   m.Current.Name,
-				}
-				switch m.Current {
-				case m.PlayerOne:
-					m.P1Notifier.Notify(&Response{
-						Type:   "Disconnection",
-						Result: res,
-					})
-				case m.PlayerTwo:
-					m.P2Notifier.Notify(&Response{
-						Type:   "Disconnection",
-						Result: res,
-					})
-				}
+			switch res := m.routeAction(action, m.Player1, m.Player2).(type) {
+			case *OutOfTurnResult:
+				// Only sent to player who input
+				m.Player1.Sender.Notify(&Response{
+					Type:   "OutOfTurn",
+					Result: res,
+				})
+
+			// Only sent to player who input
+			case *InvalidShotResult:
+				m.Player1.Sender.Notify(&Response{
+					Type:   "InvalidShot",
+					Result: res,
+				})
+
+			// If a player quits the match, signals to both clients that the match is over
+			case *PlayerQuitResult:
+				quit := &Response{Type: "PlayerQuit", Result: res}
+				m.notifyAll(quit)
+				return
+
+			case *ShotResult:
+				s := &Response{Type: "ShotResult", Result: res}
+				// TODO: handle player, board, and ship updates
+				// TODO: Account for sending updates in response
+				m.notifyAll(s)
+				m.swapTurns()
+				timer.Reset(60 * time.Second)
+
+			default:
+				m.notifyAll(&Response{
+					Type:   "NullResult",
+					Result: &NullResult{},
+				})
 			}
-
-			// Wrong player
-			if action.SenderID != m.Current.ClientID {
-				log.Printf("Out of turn input received")
-				continue // until correct
-			}
-
-			switch mv := action.Move.(type) {
-			case Shot:
-				result := mv.PlayShot(m.Waiting)
-				switch {
-				// invalid input - shouldn't happen from app
-				case !result.Valid:
-					switch { // current
-					case m.Current.ClientID == m.PlayerOne.ClientID:
-						m.P1Notifier.Notify(
-							&Response{
-								Type:   result.Type,
-								Result: result,
-							},
-						)
-
-					case m.Current.ClientID == m.PlayerTwo.ClientID:
-						m.P2Notifier.Notify(
-							&Response{
-								Type:   result.Type,
-								Result: result,
-							},
-						)
-					}
-
-				case result.Valid:
-					m.History = append(m.History, result)
-					//resp := Response{Type: result.Type, Result: result}
-					switch m.Current.ClientID {
-					// Current = PlayerOne, Valid = true, hit = true
-					case m.PlayerOne.ClientID:
-						// m.NotifyAll(&resp)
-
-						m.P1Notifier.Notify(&Response{
-							Type:   result.Type,
-							Result: result,
-						})
-						m.P2Notifier.Notify(&Response{
-							Type:   result.Type,
-							Result: result,
-						})
-						m.swapTurns()
-						timer.Reset(60 * time.Second)
-
-					// Current = PlayerTwo, Valid = true, hit = true
-					case m.PlayerTwo.ClientID:
-						m.P2Notifier.Notify(&Response{
-							Type:   result.Type,
-							Result: result,
-						})
-						m.P1Notifier.Notify(&Response{
-							Type:   result.Type,
-							Result: result,
-						})
-						m.swapTurns()
-						timer.Reset(60 * time.Second)
-
-					}
-				}
-			case PlayerQuit:
-				result := PlayerQuitResult{Type: "PlayerQuit", Quit: true}
-				m.P1Notifier.Notify(
-					&Response{
-						Type:   result.Type,
-						Result: result,
-					},
-				)
-				m.P2Notifier.Notify(
-					&Response{
-						Type:   result.Type,
-						Result: result,
-					},
-				)
-				log.Printf("Match Ended By: %v", m.Current.Name)
+		case action, ok := <-m.Player2.Receiver:
+			if !ok {
+				m.Player1.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
 				return
 			}
+			switch res := m.routeAction(action, m.Player2, m.Player1).(type) {
+			case *OutOfTurnResult:
+				m.Player2.Sender.Notify(&Response{
+					Type:   "OutOfTurn",
+					Result: res,
+				})
+			case *InvalidShotResult:
+				m.Player2.Sender.Notify(&Response{
+					Type:   "InvalidShot",
+					Result: res,
+				})
+			case *PlayerQuitResult:
+				quit := &Response{Type: "PlayerQuit", Result: res}
+				m.notifyAll(quit)
+				return
 
+			case *ShotResult:
+				s := &Response{Type: "ShotResult", Result: res}
+				// TODO: handle player, board, and ship updates
+				// TODO: Account for sending updates in response
+				m.notifyAll(s)
+				m.swapTurns()
+				timer.Reset(60 * time.Second)
+			}
+		// time expired
 		case <-timer.C:
-			log.Println("Time Expired!")
 			m.swapTurns()
 			timer.Reset(60 * time.Second)
 		}
