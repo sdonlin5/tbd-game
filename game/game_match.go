@@ -148,7 +148,11 @@ func (m *Match) Run() {
 				m.swapTurns()
 				timer.Reset(60 * time.Second)
 			}
-		// time expired
+		default:
+			m.notifyAll(&Response{
+					Type:   "NullResult",
+					Result: &NullResult{},
+				})
 		case <-timer.C:
 			m.swapTurns()
 			timer.Reset(60 * time.Second)
