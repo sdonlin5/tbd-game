@@ -71,8 +71,8 @@ func (s *Shot) shotHandler(shooter, defender *Player) Result {
 
 // Validates the values of player attack
 func (s *Shot) validateShot(defender *Player) bool {
-	if int(s.X) >= len(defender.playerBoard.coords) ||
-		int(s.Y) >= len(defender.playerBoard.coords[0]) {
+	if int(s.X) >= len(defender.playerBoard) ||
+		int(s.Y) >= len(defender.playerBoard[0]) {
 		return false
 	}
 	return true
@@ -82,9 +82,9 @@ func (s *Shot) validateShot(defender *Player) bool {
 func (s *Shot) playShot(shooter, defender *Player) *ShotResult {
 	switch {
 	// location occupired
-	case defender.playerBoard.coords[s.X][s.Y].occupied:
+	case defender.playerBoard[s.X][s.Y].occupied:
 		// previously hit - should not happen
-		if defender.playerBoard.coords[s.X][s.Y].hit {
+		if defender.playerBoard[s.X][s.Y].hit {
 			return &ShotResult{
 				Kind:  "ShotResult",
 				Shot:  s,

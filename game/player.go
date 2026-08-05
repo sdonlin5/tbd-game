@@ -8,97 +8,112 @@ import (
 	_ "github.com/gorilla/websocket"
 )
 
+//const rows uint8 = 10
+//const cols uint8 = 10
+
 // Type to hold player data
 type Player struct {
 	ClientID uuid.UUID `json:"client_id"`
 	Name     string    `json:"name"`
 	// Color		string    `json:"color"`
-	playerBoard Board
-	shotBoard   Board
+	playerBoard [10][10]*Tile
+	shotBoard   [10][10]*Tile
 	turn        bool
 	Sender      EventNotifier
 	Receiver    chan *PlayerTurn
 }
 
 func NewPlayer(id uuid.UUID, name string) *Player {
-	return &Player{
+	p := Player{
 		ClientID: id,
-		Name: name,
+		Name:     name,
 		Receiver: make(chan *PlayerTurn),
-
 	}
+	p.playerBoard = newBoard()
+	p.shotBoard = newBoard()
 }
-
-
 
 type Vessel interface {
 	Sail() bool
 }
 
 type Ship struct {
-	Player *Player	`json:"Player"`
-	Color  string	`json:"Color"`
-	//position []*Tile
-	Sunk bool 		`json:"Sunk"`
+	Player *Player `json:"Player"`
+	Color  string  `json:"Color"`
+	// position []*Tile
+	Sunk bool `json:"Sunk"`
 }
 
 type HitShip struct {
-	Ship Ship	`json:"Ship"`
+	Ship Ship `json:"Ship"`
 }
 
 func (s *HitShip) Sail() bool { return true }
 
 type Destroyer struct {
-	Ship   Ship			`json:"Ship"`
-	Health uint8 		`json:"Health"` // 2
-	Hits   uint8 		`json:"Hits"`
+	Ship   Ship  `json:"Ship"`
+	Health uint8 `json:"Health"` // 2
+	Hits   uint8 `json:"Hits"`
 }
 
 func (s *Destroyer) Sail() bool { return true }
 
 type Carrier struct {
-	Ship   Ship			`json:"Ship"`
-	Health uint8 		`json:"Health"` // 5
-	Hits   uint8 		`json:"Hits"`
+	Ship   Ship  `json:"Ship"`
+	Health uint8 `json:"Health"` // 5
+	Hits   uint8 `json:"Hits"`
 }
 
 func (s *Carrier) Sail() bool { return true }
 
 type Battleship struct {
-	Ship   Ship			`json:"Ship"`
-	Health uint8 		`json:"Health"` // 4
-	Hits   uint8 		`json:"Hits"`
+	Ship   Ship  `json:"Ship"`
+	Health uint8 `json:"Health"` // 4
+	Hits   uint8 `json:"Hits"`
 }
 
 func (s *Battleship) Sail() bool { return true }
 
 type Cruiser struct {
-	Ship   Ship			`json:"Ship"`
-	Health uint8 		`json:"Health"` // 3
-	Hits   uint8 		`json:"Hits"`
+	Ship   Ship  `json:"Ship"`
+	Health uint8 `json:"Health"` // 3
+	Hits   uint8 `json:"Hits"`
 }
 
 func (s *Cruiser) Sail() bool { return true }
 
 type Submarine struct {
-	Ship   Ship			`json:"Ship"`
-	Health uint8 		`json:"Health"` // 3
-	Hits   uint8 		`json:"Hits"`
+	Ship   Ship  `json:"Ship"`
+	Health uint8 `json:"Health"` // 3
+	Hits   uint8 `json:"Hits"`
 }
 
 func (s *Submarine) Sail() bool { return true }
 
 type Tile struct {
-	x        uint8
-	y        uint8
+	X        int
+	Y        int
 	occupied bool
 	hit      bool
 	ship     any
 }
 
-type Board struct {
-	coords [10][10]*Tile
-	// tiles [20][20]*Ship production board size
+func newTile(x int, y int, occupied bool) *Tile {
+	return &Tile{
+		X:        x,
+		Y:        y,
+		occupied: occupied,
+	}
+}
+
+func newBoard() [10][10]*Tile {
+	var b [10][10]*Tile
+	for i := 0; i < 10; i++ {
+		for j := 0; i < 10; i++ {
+			b[i][j] = newTile(i, j, false)
+		}
+	}
+	return b
 }
 
 func (p *Player) updateAttacker(r *ShotResult) {
