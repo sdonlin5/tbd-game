@@ -84,6 +84,11 @@ func (m *Match) Run() {
 				m.Player2.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
 				return
 			}
+			if action.Disconnected {
+				m.Player2.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
+				return
+			}
+
 			switch res := m.routeAction(action, m.Player1, m.Player2).(type) {
 			case *OutOfTurnResult:
 				// Only sent to player who input
@@ -112,12 +117,22 @@ func (m *Match) Run() {
 				m.notifyAll(s)
 				m.swapTurns()
 				timer.Reset(60 * time.Second)
+
+			default:
+				// end on defualt to identify.
+				log.Printf("Default Result - Player1: %v", res)
+				return
 			}
 		case action, ok := <-m.Player2.Receiver:
 			if !ok {
 				m.Player1.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
 				return
 			}
+			if action.Disconnected {
+				m.Player1.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
+				return
+			}
+
 			switch res := m.routeAction(action, m.Player2, m.Player1).(type) {
 			case *OutOfTurnResult:
 				m.Player2.Sender.Notify(&Response{
@@ -141,6 +156,9 @@ func (m *Match) Run() {
 				m.notifyAll(s)
 				m.swapTurns()
 				timer.Reset(60 * time.Second)
+			default:
+				log.Printf("Default Result - Player2: %v", res)
+				return
 			}
 		case <-timer.C:
 			m.swapTurns()

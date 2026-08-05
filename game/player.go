@@ -8,16 +8,17 @@ import (
 	_ "github.com/gorilla/websocket"
 )
 
-//const rows uint8 = 10
-//const cols uint8 = 10
+const rows uint8 = 10
+const cols uint8 = 10
 
 // Type to hold player data
 type Player struct {
 	ClientID uuid.UUID `json:"client_id"`
 	Name     string    `json:"name"`
 	// Color		string    `json:"color"`
-	playerBoard [10][10]*Tile
-	shotBoard   [10][10]*Tile
+	playerBoard [rows][cols]*Tile
+	shotBoard   [rows][cols]*Tile
+	//nolint:unused
 	turn        bool
 	Sender      EventNotifier
 	Receiver    chan *PlayerTurn
@@ -31,6 +32,7 @@ func NewPlayer(id uuid.UUID, name string) *Player {
 	}
 	p.playerBoard = newBoard()
 	p.shotBoard = newBoard()
+	return &p
 }
 
 type Vessel interface {
@@ -95,6 +97,7 @@ type Tile struct {
 	Y        int
 	occupied bool
 	hit      bool
+	//nolint:unused 
 	ship     any
 }
 
@@ -116,12 +119,13 @@ func newBoard() [10][10]*Tile {
 	return b
 }
 
+//nolint:unused
 func (p *Player) updateAttacker(r *ShotResult) {
 	// place hit ship indcator at shot coordinates
-	p.shotBoard.coords[r.Shot.X][r.Shot.Y].ship = HitShip{}
+	p.shotBoard[r.Shot.X][r.Shot.Y].ship = HitShip{}
 }
-
+//nolint:unused
 func (p *Player) updateDefender(r *ShotResult) {
 	// marks that a ship has been hit
-	p.playerBoard.coords[r.Shot.X][r.Shot.Y].ship = HitShip{}
+	p.playerBoard[r.Shot.X][r.Shot.Y].ship = HitShip{}
 }

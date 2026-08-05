@@ -55,6 +55,7 @@ func (c *Client) inputPump() {
 		log.Printf("%v", err)
 		return
 	}
+
 	c.conn.SetPongHandler(func(string) error {
 		// After each pong is received, reset the the deadline
 		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -67,13 +68,9 @@ func (c *Client) inputPump() {
 
 		// Gaurds against sending to a match who's goroutine ended
 		if readErr != nil {
-			select {
-				case c.ActionSender <- &game.PlayerTurn{
-				SenderID: 	c.id,
-				Disconnected: true,
-			}:
-				default:
-			}
+			if c.ActionSender != nil {
+					close(c.ActionSender)
+				}
 			return
 		}
 
@@ -134,8 +131,7 @@ func (c *Client) outputPump() {
 		select {
 		case resp, ok := <-c.ResponseReceiver:
 			if !ok {
-				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{});
-				err != nil {
+				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
 					log.Printf("Error: %v", ok)
 				}
 				return
