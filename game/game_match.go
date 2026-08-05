@@ -55,10 +55,10 @@ func (m *Match) notifyAll(r *Response) {
 func (m *Match) routeAction(action *PlayerTurn, sender, other *Player) Result {
 	switch mv := action.Move.(type) {
 	// handle quit
-	case PlayerQuit:
+	case *PlayerQuit:
 		return &PlayerQuitResult{}
 	// handle shot
-	case Shot:
+	case *Shot:
 		// handle out of turn
 		if sender.ClientID != m.current.ClientID {
 			return &OutOfTurnResult{}

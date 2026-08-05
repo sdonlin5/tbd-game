@@ -84,27 +84,29 @@ func (c *Client) inputPump() {
 		}
 		// Intermediate storage
 		var move game.Move
-		var jsonError error
+		var inputError error
 		log.Printf("ClientID: %v  - Input: %v", c.id, input)
 
 		// parse the payload
 		switch input.Type {
 		case "Shot":
 			var s game.Shot
-			jsonError = json.Unmarshal(input.Payload, &s)
-			move = s
+			inputError = json.Unmarshal(input.Payload, &s)
+			move = &s
 
 		case "PlayerQuit":
+			var q game.PlayerQuit
+			inputError = json.Unmarshal(input.Payload, &q)
 			log.Printf("Received: %v", input)
+			move = &q
 
 		default:
 			log.Printf("Unknown input type: %v", input.Type)
 			continue
 		}
-
 		// Error if json malformed
-		if jsonError != nil {
-			log.Printf("Error %v", jsonError)
+		if inputError != nil {
+			log.Printf("Error %v", inputError)
 			continue
 
 		} else {
@@ -114,8 +116,6 @@ func (c *Client) inputPump() {
 			default:
 				return
 			}
-
-			//c.ActionSender <- &game.Action{Move: move}
 		}
 	}
 }

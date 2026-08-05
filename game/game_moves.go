@@ -46,7 +46,7 @@ type Shot struct {
 }
 
 // Implements Move interface
-func (s Shot) Play() {}
+func (s *Shot) Play() {}
 
 
 // Results of player attack
@@ -58,7 +58,7 @@ type ShotResult struct {
 }
 
 // Implements Result interface
-func (res ShotResult) Played() {}
+func (res *ShotResult) Played() {}
 
 
 func (s *Shot) shotHandler(shooter, defender *Player) Result {
@@ -70,7 +70,7 @@ func (s *Shot) shotHandler(shooter, defender *Player) Result {
 }
 
 // Validates the values of player attack
-func (s Shot) validateShot(defender *Player) bool {
+func (s *Shot) validateShot(defender *Player) bool {
 	if int(s.X) >= len(defender.playerBoard.coords) ||
 		int(s.Y) >= len(defender.playerBoard.coords[0]) {
 		return false
@@ -120,21 +120,21 @@ func (nr *NullResult) Played() {}
 
 // Signal player quitting the match
 type PlayerQuit struct{}
-func (q PlayerQuit) Play() {}
+func (q *PlayerQuit) Play() {}
 
 type PlayerQuitResult struct{}
-func (res PlayerQuitResult) Played() {}
+func (res *PlayerQuitResult) Played() {}
 
 // Invalid shot received signal - shouldn't happen
 type InvalidShotResult struct{}
-func (i InvalidShotResult) Played() {}
+func (i *InvalidShotResult) Played() {}
 
 // Signal that a shot was played out of turn - shouldn't happen
 type OutOfTurnResult struct{}
-func (oot OutOfTurnResult) Played() {}
+func (oot *OutOfTurnResult) Played() {}
 
 // Used to signal
 type Disconnect struct{}
-func (d Disconnect) Played() {}
+func (d *Disconnect) Played() {}
 
 //-- End Disconnection
