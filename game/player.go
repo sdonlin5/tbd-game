@@ -3,7 +3,8 @@ package game
 
 import (
 	_ "encoding/json"
-	"log"
+	"fmt"
+	_ "log"
 
 	"github.com/google/uuid"
 	_ "github.com/gorilla/websocket"
@@ -26,6 +27,8 @@ type Player struct {
 	Sender   EventNotifier
 	Receiver chan *PlayerTurn
 }
+
+type Board [10][10]*Tile
 
 func NewPlayer(id uuid.UUID, name string) *Player {
 	p := Player{
@@ -112,8 +115,6 @@ func newTile(x int, y int, occupied bool) *Tile {
 	}
 }
 
-type Board [10][10]*Tile
-
 func newBoard() [10][10]*Tile {
 	var b Board
 	for i := 0; i < 10; i++ {
@@ -121,17 +122,19 @@ func newBoard() [10][10]*Tile {
 			b[i][j] = newTile(i, j, false)
 		}
 	}
+	b.printBoard()
 	return b
 }
 
+// confirm board
 // nolint: unused
 func (b *Board) printBoard() {
 	for i := 0; i < 10; i++ {
 		for j := 0; j < 10; j++ {
-			if i == 9 {
-				log.Printf("[%v, %v]\n", b[i][j].X, b[i][j].Y)
+			if j == 9 {
+				fmt.Printf(" [%v, %v] \n", b[i][j].X, b[i][j].Y)
 			} else {
-				log.Printf("[%v, %v]", b[i][j].X, b[i][j].Y)
+				fmt.Printf(" [%v, %v] ", b[i][j].X, b[i][j].Y)
 			}
 		}
 	}
