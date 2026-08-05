@@ -80,7 +80,7 @@ func (m *Match) Run() {
 	for {
 		select {
 		case action, ok := <-m.Player1.Receiver:
-			if !ok {
+			if !ok || action.Disconnected {
 				m.Player2.Sender.Notify(&Response{Type: "Disconnect", Result: &Disconnect{}})
 				return
 			}
