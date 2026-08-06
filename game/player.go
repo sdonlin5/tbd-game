@@ -5,6 +5,7 @@ import (
 	_ "encoding/json"
 	"fmt"
 	_ "log"
+	"sync"
 
 	"github.com/google/uuid"
 	_ "github.com/gorilla/websocket"
@@ -26,6 +27,7 @@ type Player struct {
 	turn     bool
 	Sender   EventNotifier
 	Receiver chan *PlayerTurn
+	mu       sync.RWMutex
 }
 
 type Board [10][10]*Tile

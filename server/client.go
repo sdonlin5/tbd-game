@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"game_project/game"
@@ -35,6 +36,7 @@ type Client struct {
 	ActionSender     chan<- *game.PlayerTurn
 	ResponseReceiver chan *game.Response
 	matchDone        <-chan struct{}
+	mu sync.RWMutex
 }
 
 // Satisfies EventNotifier interface
@@ -65,20 +67,29 @@ func (c *Client) inputPump() {
 		var input Envelope
 		readErr := c.conn.ReadJSON(&input)
 		log.Printf("66 Client: %v - Type: %q Payload: %q Error: %v", c.id, input.Type, string(input.Payload), readErr)
+
 		// Gaurds against sending to a match who's goroutine ended
 		if readErr != nil {
-			if c.ActionSender != nil {
-				close(c.ActionSender)
+			c.mu.RLock()
+			activeSender := c.ActionSender
+			c.mu.RUnlock()
+			if activeSender != nil {
+				close(activeSender)
 			}
-			log.Printf("72 Client: %v - Error: %v\n ActionSender: %v", c.id, readErr, c.ActionSender)
 
+			log.Printf("72 Client: %v - Error: %v\n ActionSender: %v", c.id, readErr, activeSender)
 			return
 		}
-		// Gaurds against the client not having a match
-		if c.ActionSender == nil {
-			log.Printf("78 Client: %v - ActionSender: %v", c.id, c.ActionSender)
+
+		c.mu.RLock()
+		sender := c.ActionSender
+		c.mu.RUnlock()
+
+		if sender == nil {
+			log.Printf("78 Client: %v - ActionSender: %v", c.id, sender)
 			continue
 		}
+
 		// Intermediate storage
 		var move game.Move
 		var inputError error
@@ -107,19 +118,11 @@ func (c *Client) inputPump() {
 		} else {
 			// blocking send
 			select {
-			case c.ActionSender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
+			case sender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
 			case <-c.matchDone:
 				log.Printf("Client %v: match ended, disconnecting", c.id)
 				return
 			}
-
-			/*non-blocking send
-			select {
-			case c.ActionSender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
-				log.Printf("Input sent to match")
-			default:
-				return
-			} */
 		}
 	}
 }

@@ -56,6 +56,7 @@ func (hub *Hub) removeFromQueue(client *Client) {
 	for i, c := range hub.queue {
 		if c.id == client.id {
 			hub.queue = slices.Delete(hub.queue, i, i+1)
+			break
 		}
 	}
 	log.Printf("Client Removed From Queue: ID = %v", client.id)
@@ -88,8 +89,14 @@ func (hub *Hub) Run() {
 			// Associate Chanels
 			match.Player1.Sender = c1
 			match.Player2.Sender = c2
+			c1.mu.Lock()
 			c1.ActionSender = match.Player1.Receiver
+			c1.mu.Unlock()
+
+			c2.mu.Lock()
 			c2.ActionSender = match.Player2.Receiver
+			c2.mu.Lock()
+
 			c1.matchDone = match.Done
 			c2.matchDone = match.Done
 
