@@ -36,7 +36,7 @@ type Client struct {
 	ActionSender     chan<- *game.PlayerTurn
 	ResponseReceiver chan *game.Response
 	matchDone        <-chan struct{}
-	mu sync.RWMutex
+	mu               sync.RWMutex
 }
 
 // Satisfies EventNotifier interface
