@@ -20,7 +20,8 @@ type Match struct {
 	// ActionReceiver chan *PlayerTurn
 	current *Player
 	waiting *Player
-	History []*ShotResult
+	History []*Result
+	Done    chan struct{}
 }
 
 // Spawns new match, called by Hub
@@ -34,16 +35,13 @@ func NewMatch(id1 uuid.UUID, name1 string, id2 uuid.UUID, name2 string) *Match {
 
 // Swaps current and waiting players using a temporary variable
 func (m *Match) swapTurns() {
-	log.Printf("Swap Called\n\nBefore:\n%+v --> current\n%+v --> waiting\n",
-		m.current.ClientID,
-		m.waiting.ClientID)
-
 	temp := m.current
 	m.current = m.waiting
 	m.waiting = temp
 
-	log.Printf("After:\n%+v --> current\n%+v --> waiting\n",
+	log.Printf("Swapped:\n%+v --> current\n%+v --> waiting\n",
 		m.current.ClientID, m.waiting.ClientID)
+	m.current.Sender.Notify(&Response{Type: "Your turn!", Result: nil})
 }
 
 // Send the same response to both players
@@ -63,7 +61,9 @@ func (m *Match) routeAction(action *PlayerTurn, sender, other *Player) Result {
 		if sender.ClientID != m.current.ClientID {
 			return &OutOfTurnResult{}
 		}
-		return mv.shotHandler(sender, other)
+		shot := mv.shotHandler(sender, other)
+		m.History = append(m.History, &shot)
+		return shot
 	// Should never get here
 	default:
 		return &NullResult{}
@@ -75,6 +75,8 @@ func (m *Match) Run() {
 	m.current = m.Player1
 	m.waiting = m.Player2
 	timer := time.NewTimer(60 * time.Second)
+	m.current.Sender.Notify(&Response{Type: "You go first", Result: nil})
+	m.waiting.Sender.Notify(&Response{Type: "You go second", Result: nil})
 	log.Printf("Start Match")
 
 	for {
@@ -152,6 +154,7 @@ func (m *Match) Run() {
 				return
 			}
 		case <-timer.C:
+			log.Printf("Timer Up!")
 			m.swapTurns()
 			timer.Reset(60 * time.Second)
 		}

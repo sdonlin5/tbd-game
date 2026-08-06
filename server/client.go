@@ -23,8 +23,8 @@ const (
 
 // Struct to receive input JSON from the websocket connection.
 type Envelope struct {
-	Type    string          // type of input the user entered
-	Payload json.RawMessage // data of the input, e.g. shot coords
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"ayload"`
 }
 
 // Intermediary between websocket connection and hub.
@@ -34,6 +34,7 @@ type Client struct {
 	conn             *websocket.Conn
 	ActionSender     chan<- *game.PlayerTurn
 	ResponseReceiver chan *game.Response
+	matchDone        <-chan struct{}
 }
 
 // Satisfies EventNotifier interface
@@ -52,7 +53,6 @@ func (c *Client) inputPump() {
 	}()
 
 	if err := c.conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		log.Printf("%v", err)
 		return
 	}
 
@@ -64,26 +64,24 @@ func (c *Client) inputPump() {
 	for {
 		var input Envelope
 		readErr := c.conn.ReadJSON(&input)
-		log.Printf("ReadJSON: %v", input)
-
+		log.Printf("66 Client: %v - Type: %q Payload: %q Error: %v", c.id, input.Type, string(input.Payload), readErr)
 		// Gaurds against sending to a match who's goroutine ended
 		if readErr != nil {
 			if c.ActionSender != nil {
-					close(c.ActionSender)
-				}
+				close(c.ActionSender)
+			}
+			log.Printf("72 Client: %v - Error: %v\n ActionSender: %v", c.id, readErr, c.ActionSender)
+
 			return
 		}
-
 		// Gaurds against the client not having a match
 		if c.ActionSender == nil {
-			log.Printf("Error: %v sent payload before joining match!", c.id)
+			log.Printf("78 Client: %v - ActionSender: %v", c.id, c.ActionSender)
 			continue
 		}
 		// Intermediate storage
 		var move game.Move
 		var inputError error
-		log.Printf("ClientID: %v  - Input: %v", c.id, input)
-
 		// parse the payload
 		switch input.Type {
 		case "Shot":
@@ -94,25 +92,34 @@ func (c *Client) inputPump() {
 		case "PlayerQuit":
 			var q game.PlayerQuit
 			inputError = json.Unmarshal(input.Payload, &q)
-			log.Printf("Received: %v", input)
+			log.Printf("94 Client: %v - Error: %v", c.id, inputError)
 			move = &q
 
 		default:
-			log.Printf("Unknown input type: %v", input.Type)
+			log.Printf("98 Client: %v - Default Case", c.id)
 			continue
 		}
 		// Error if json malformed
 		if inputError != nil {
-			log.Printf("Error %v", inputError)
+			log.Printf("103 Client: %v - Error: %v", c.id, inputError)
 			continue
 
 		} else {
+			// blocking send
+			select {
+			case c.ActionSender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
+			case <-c.matchDone:
+				log.Printf("Client %v: match ended, disconnecting", c.id)
+				return
+			}
+
+			/*non-blocking send
 			select {
 			case c.ActionSender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
 				log.Printf("Input sent to match")
 			default:
 				return
-			}
+			} */
 		}
 	}
 }
@@ -132,13 +139,12 @@ func (c *Client) outputPump() {
 		case resp, ok := <-c.ResponseReceiver:
 			if !ok {
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					log.Printf("Error: %v", ok)
+					log.Printf("Client: %v - Error: %v\n Response: %v", c.id, err, resp)
 				}
 				return
 			}
 
 			if e := c.conn.SetWriteDeadline(time.Now().Add(pingPeriod)); e != nil {
-				log.Printf("%v", e)
 				return
 			}
 
@@ -150,12 +156,10 @@ func (c *Client) outputPump() {
 
 		case <-ticker.C:
 			if e := c.conn.SetWriteDeadline(time.Now().Add(pingPeriod)); e != nil {
-				log.Printf("%v", e)
 				return
 			} // handle SetWriteDeadline Error
 
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("Error: %v", err)
 				return
 			} // handle WriteMessage Error
 		}
@@ -174,7 +178,7 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	// Upgrade the connection to websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("ERROR: %v", err)
+		log.Printf("Error: %v", err)
 		return
 	}
 
@@ -185,7 +189,7 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		conn:             ws,
 		ResponseReceiver: make(chan *game.Response, 256),
 	}
-	log.Printf("client spawned: %+v", client.id)
+	log.Printf("Client Spawned: %+v", client.id)
 
 	// Register the client with the hub
 	client.hub.register <- client

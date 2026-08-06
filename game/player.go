@@ -17,8 +17,8 @@ const (
 
 // Type to hold player data
 type Player struct {
-	ClientID uuid.UUID `json:"client_id"`
-	Name     string    `json:"name"`
+	ClientID uuid.UUID
+	Name     string
 	// Color		string    `json:"color"`
 	playerBoard [rows][cols]*Tile
 	shotBoard   [rows][cols]*Tile
@@ -46,54 +46,54 @@ type Vessel interface {
 }
 
 type Ship struct {
-	Player *Player `json:"Player"`
-	Color  string  `json:"Color"`
+	Player *Player
+	Color  string
 	// position []*Tile
-	Sunk bool `json:"Sunk"`
+	Sunk bool
 }
 
 type HitShip struct {
-	Ship Ship `json:"Ship"`
+	Ship Ship
 }
 
 func (s *HitShip) Sail() bool { return true }
 
 type Destroyer struct {
-	Ship   Ship  `json:"Ship"`
-	Health uint8 `json:"Health"` // 2
-	Hits   uint8 `json:"Hits"`
+	Ship   Ship
+	Health uint8
+	Hits   uint8
 }
 
 func (s *Destroyer) Sail() bool { return true }
 
 type Carrier struct {
-	Ship   Ship  `json:"Ship"`
-	Health uint8 `json:"Health"` // 5
-	Hits   uint8 `json:"Hits"`
+	Ship   Ship
+	Health uint8
+	Hits   uint8
 }
 
 func (s *Carrier) Sail() bool { return true }
 
 type Battleship struct {
-	Ship   Ship  `json:"Ship"`
-	Health uint8 `json:"Health"` // 4
-	Hits   uint8 `json:"Hits"`
+	Ship   Ship
+	Health uint8
+	Hits   uint8
 }
 
 func (s *Battleship) Sail() bool { return true }
 
 type Cruiser struct {
-	Ship   Ship  `json:"Ship"`
-	Health uint8 `json:"Health"` // 3
-	Hits   uint8 `json:"Hits"`
+	Ship   Ship
+	Health uint8
+	Hits   uint8
 }
 
 func (s *Cruiser) Sail() bool { return true }
 
 type Submarine struct {
-	Ship   Ship  `json:"Ship"`
-	Health uint8 `json:"Health"` // 3
-	Hits   uint8 `json:"Hits"`
+	Ship   Ship
+	Health uint8
+	Hits   uint8
 }
 
 func (s *Submarine) Sail() bool { return true }
@@ -122,7 +122,6 @@ func newBoard() [10][10]*Tile {
 			b[i][j] = newTile(i, j, false)
 		}
 	}
-	b.printBoard()
 	return b
 }
 
