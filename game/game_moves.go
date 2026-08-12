@@ -47,7 +47,7 @@ func (s *Shot) Play() {}
 
 // Results of player attack
 type ShotResult struct {
-	Type  string `json:"type"`
+	//Type  string `json:"type"`
 	Shot  *Shot  `json:"shot"`
 	Valid bool   `json:"valid"`
 	Hit   bool   `json:"hit"`
@@ -81,14 +81,14 @@ func (s *Shot) playShot(shooter, defender *Player) *ShotResult {
 		// previously hit - should not happen
 		if defender.playerBoard[s.X][s.Y].hit {
 			return &ShotResult{
-				Type:  "ShotResult",
+				//Type:  "ShotResult",
 				Shot:  s,
 				Valid: true,
 				Hit:   false,
 			}
 		} else {
 			return &ShotResult{
-				Type:  "ShotResult",
+				//Type:  "ShotResult",
 				Shot:  s,
 				Valid: true,
 				Hit:   true,
@@ -98,7 +98,7 @@ func (s *Shot) playShot(shooter, defender *Player) *ShotResult {
 	default:
 		// not hit
 		return &ShotResult{
-			Type:  "ShotResult",
+			//Type:  "ShotResult",
 			Shot:  s,
 			Valid: true,
 			Hit:   false,

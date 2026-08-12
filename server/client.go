@@ -25,7 +25,7 @@ const (
 // Struct to receive input JSON from the websocket connection.
 type Envelope struct {
 	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"ayload"`
+	Payload json.RawMessage `json:"payload"`
 }
 
 // Intermediary between websocket connection and hub.
@@ -66,21 +66,33 @@ func (c *Client) inputPump() {
 	for {
 		var input Envelope
 		readErr := c.conn.ReadJSON(&input)
-		log.Printf("66 Client: %v - Type: %q Payload: %q Error: %v", c.id, input.Type, string(input.Payload), readErr)
+
+		// check type of error
+		switch readErr.(type) {
+		// fatal error - connection lost
+		case *json.UnmarshalTypeError:
+			log.Printf("Line: 68 - Connection Failed - Client: %v -  Fatal Error: %v", c.id, readErr)
+			return
+		// non-fatal error - contents of json incorrect
+		case *json.SyntaxError:
+			log.Printf("66 Client: %v - Type: %q Payload: %q Error: %v", c.id, input.Type, string(input.Payload), readErr)
+			continue
+		}
 
 		// Gaurds against sending to a match who's goroutine ended
 		if readErr != nil {
+			// lock the channel and copy pointer to local variable to be read
 			c.mu.RLock()
 			activeSender := c.ActionSender
 			c.mu.RUnlock()
 			if activeSender != nil {
 				close(activeSender)
 			}
-
 			log.Printf("72 Client: %v - Error: %v\n ActionSender: %v", c.id, readErr, activeSender)
 			return
 		}
 
+		// lock
 		c.mu.RLock()
 		sender := c.ActionSender
 		c.mu.RUnlock()

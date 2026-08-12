@@ -89,10 +89,11 @@ func (hub *Hub) Run() {
 			// Associate Chanels
 			match.Player1.Sender = c1
 			match.Player2.Sender = c2
+
+			// lock the properties during assignment
 			c1.mu.Lock()
 			c1.ActionSender = match.Player1.Receiver
 			c1.mu.Unlock()
-
 			c2.mu.Lock()
 			c2.ActionSender = match.Player2.Receiver
 			c2.mu.Lock()

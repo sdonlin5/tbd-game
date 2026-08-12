@@ -5,7 +5,7 @@ import (
 	_ "encoding/json"
 	"fmt"
 	_ "log"
-	"sync"
+	_ "sync"
 
 	"github.com/google/uuid"
 	_ "github.com/gorilla/websocket"
@@ -20,14 +20,14 @@ const (
 type Player struct {
 	ClientID uuid.UUID
 	Name     string
-	// Color		string    `json:"color"`
+	//Color		string    `json:"color"`
 	playerBoard [rows][cols]*Tile
 	shotBoard   [rows][cols]*Tile
 	//nolint:unused
 	turn     bool
 	Sender   EventNotifier
 	Receiver chan *PlayerTurn
-	mu       sync.RWMutex
+	// mu       sync.RWMutex
 }
 
 type Board [10][10]*Tile
