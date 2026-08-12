@@ -71,11 +71,11 @@ func (c *Client) inputPump() {
 		switch readErr.(type) {
 		// fatal error - connection lost
 		case *json.UnmarshalTypeError:
-			log.Printf("Line: 68 - Connection Failed - Client: %v -  Fatal Error: %v", c.id, readErr)
+			log.Printf("[68] Connection Failed - Client: %v -  Fatal Error: %v", c.id, readErr)
 			return
 		// non-fatal error - contents of json incorrect
 		case *json.SyntaxError:
-			log.Printf("66 Client: %v - Type: %q Payload: %q Error: %v", c.id, input.Type, string(input.Payload), readErr)
+			log.Printf("[68] Client: %v - Type: %q Payload: %q Error: %v", c.id, input.Type, string(input.Payload), readErr)
 			continue
 		}
 
@@ -88,7 +88,7 @@ func (c *Client) inputPump() {
 			if activeSender != nil {
 				close(activeSender)
 			}
-			log.Printf("72 Client: %v - Error: %v\n ActionSender: %v", c.id, readErr, activeSender)
+			log.Printf("[83] Client: %v - Error: %v\n ActionSender: %v", c.id, readErr, activeSender)
 			return
 		}
 
@@ -98,7 +98,7 @@ func (c *Client) inputPump() {
 		c.mu.RUnlock()
 
 		if sender == nil {
-			log.Printf("78 Client: %v - ActionSender: %v", c.id, sender)
+			log.Printf("[100] Client: %v - ActionSender: %v", c.id, sender)
 			continue
 		}
 
@@ -110,21 +110,22 @@ func (c *Client) inputPump() {
 		case "Shot":
 			var s game.Shot
 			inputError = json.Unmarshal(input.Payload, &s)
+			log.Printf("[109] Client: %v - Error: %v", c.id, inputError)
 			move = &s
 
 		case "PlayerQuit":
 			var q game.PlayerQuit
 			inputError = json.Unmarshal(input.Payload, &q)
-			log.Printf("94 Client: %v - Error: %v", c.id, inputError)
+			log.Printf("[109] Client: %v - Error: %v", c.id, inputError)
 			move = &q
 
 		default:
-			log.Printf("98 Client: %v - Default Case", c.id)
+			log.Printf("[109] Client: %v - Hit Default Case", c.id)
 			continue
 		}
 		// Error if json malformed
 		if inputError != nil {
-			log.Printf("103 Client: %v - Error: %v", c.id, inputError)
+			log.Printf("[109] Client: %v - Error: %v", c.id, inputError)
 			continue
 
 		} else {
@@ -132,7 +133,7 @@ func (c *Client) inputPump() {
 			select {
 			case sender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
 			case <-c.matchDone:
-				log.Printf("Client %v: match ended, disconnecting", c.id)
+				log.Printf("[131] Client %v: match ended, disconnecting", c.id)
 				return
 			}
 		}
@@ -154,7 +155,7 @@ func (c *Client) outputPump() {
 		case resp, ok := <-c.ResponseReceiver:
 			if !ok {
 				if err := c.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
-					log.Printf("Client: %v - Error: %v\n Response: %v", c.id, err, resp)
+					log.Printf("[157] Client: %v - Error: %v\n Response: %v", c.id, err, resp)
 				}
 				return
 			}
@@ -165,7 +166,7 @@ func (c *Client) outputPump() {
 
 			// transmit to peer
 			if err := c.conn.WriteJSON(resp); err != nil {
-				log.Printf("Error: %v", err)
+				log.Printf("[168] Error: %v", err)
 				return
 			} // Handle WriteJSON error
 
@@ -193,7 +194,7 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	// Upgrade the connection to websocket
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Error: %v", err)
+		log.Printf("[195] Error: %v", err)
 		return
 	}
 
@@ -204,7 +205,7 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		conn:             ws,
 		ResponseReceiver: make(chan *game.Response, 256),
 	}
-	log.Printf("Client Spawned: %+v", client.id)
+	log.Printf("[202] Client Spawned: %+v", client.id)
 
 	// Register the client with the hub
 	client.hub.register <- client
