@@ -13,15 +13,10 @@ type Match struct {
 	// Data type to control an instanatch
 	Player1 *Player
 	Player2 *Player
-	// P1Receiver chan *PlayerTurn
-	// P1Sender   EventNotifier
-	// P2Receiver chan *PlayerTurn
-	// P2Sender   EventNotifier
-	// ActionReceiver chan *PlayerTurn
 	current *Player
 	waiting *Player
 	History []*Result
-	Done    chan struct{}
+	MatchDone    chan struct{}	// corresponds with client matchDone
 }
 
 // Spawns new match, called by Hub

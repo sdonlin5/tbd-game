@@ -35,7 +35,8 @@ type Client struct {
 	conn             *websocket.Conn
 	ActionSender     chan<- *game.PlayerTurn
 	ResponseReceiver chan *game.Response
-	matchDone        <-chan struct{}
+	matchDone        <-chan struct{} // receiver from m.MatchDone, triggers shutdown
+	done             chan struct{}   //
 	mu               sync.RWMutex
 }
 
@@ -43,7 +44,7 @@ type Client struct {
 func (c *Client) Notify(resp *game.Response) {
 	select {
 	case c.ResponseReceiver <- resp:
-	default:
+	case <-c.matchDone:
 	}
 }
 
@@ -69,13 +70,11 @@ func (c *Client) inputPump() {
 
 		// check type of error
 		switch readErr.(type) {
-		// fatal error - connection lost
 		case *json.UnmarshalTypeError:
-			log.Printf("[68] Connection Failed - Client: %v -  Fatal Error: %v", c.id, readErr)
-			return
-		// non-fatal error - contents of json incorrect
-		case *json.SyntaxError:
 			log.Printf("[68] Client: %v - Type: %q Payload: %q Error: %v", c.id, input.Type, string(input.Payload), readErr)
+			continue
+		case *json.SyntaxError:
+			log.Printf("[68] Connection Failed - Client: %v -  Error: %v", c.id, readErr)
 			continue
 		}
 
@@ -95,6 +94,7 @@ func (c *Client) inputPump() {
 		// lock
 		c.mu.RLock()
 		sender := c.ActionSender
+		isDone := c.matchDone
 		c.mu.RUnlock()
 
 		if sender == nil {
@@ -132,7 +132,7 @@ func (c *Client) inputPump() {
 			// blocking send
 			select {
 			case sender <- &game.PlayerTurn{SenderID: c.id, Move: move}:
-			case <-c.matchDone:
+			case <-isDone:
 				log.Printf("[131] Client %v: match ended, disconnecting", c.id)
 				return
 			}
@@ -213,4 +213,8 @@ func ServeWS(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	// Start the client input and output loops in go routines
 	go client.outputPump()
 	go client.inputPump()
+	go func() {
+		<-client.done
+		client.conn.Close()
+	}()
 }

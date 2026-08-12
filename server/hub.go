@@ -93,13 +93,13 @@ func (hub *Hub) Run() {
 			// lock the properties during assignment
 			c1.mu.Lock()
 			c1.ActionSender = match.Player1.Receiver
+			c1.done = match.MatchDone
 			c1.mu.Unlock()
+
 			c2.mu.Lock()
 			c2.ActionSender = match.Player2.Receiver
-			c2.mu.Lock()
-
-			c1.matchDone = match.Done
-			c2.matchDone = match.Done
+			c2.done = match.MatchDone
+			c2.mu.Unlock()
 
 			log.Printf("Match Spawned: ID = %+v", match.MatchID)
 			go match.Run()
